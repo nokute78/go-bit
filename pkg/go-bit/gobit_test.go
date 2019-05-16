@@ -2,6 +2,7 @@ package gobit
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 )
 
@@ -23,6 +24,43 @@ func TestOffsetNormalize(t *testing.T) {
 		v.before.Normalize()
 		if v.before != v.after {
 			t.Errorf("%s: mismatch. given %v. expected %v", v.name, v.before, v.after)
+		}
+	}
+}
+
+func TestGetBit(t *testing.T) {
+	type testcase struct {
+		name     string
+		bytes    []byte
+		off      Offset
+		expected byte
+	}
+
+	cases := []testcase{
+		{"0000_1000[2]", []byte{0x08}, Offset{0, 2}, 0},
+		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, 1},
+		{"0000_0100_0000_0000[8+2]", []byte{0x00, 0x04}, Offset{1, 2}, 1},
+		{"0000_0100_0000_0000[8+1]", []byte{0x00, 0x04}, Offset{1, 1}, 0},
+	}
+
+	for _, v := range cases {
+		b, err := GetBit(v.bytes, v.off)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if b != v.expected {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, b, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x0}, Offset{128, 0}, 0},
+	}
+
+	for _, v := range errcases {
+		_, err := GetBit(v.bytes, v.off)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
 		}
 	}
 }
@@ -134,20 +172,21 @@ func TestSubOffset(t *testing.T) {
 func TestGetBits(t *testing.T) {
 	type testcase struct {
 		name string
-		*Offset
+		Offset
 		bit_size uint64
 		testdata []byte
 		expected []byte
 	}
 
 	cases := []testcase{
-		{"from head", &Offset{0, 0}, 4, []byte{0x0f}, []byte{0x0f}},
-		{"0011_1000", &Offset{0, 3}, 3, []byte{0x38}, []byte{0x07}},
-		{"0111_1000_0000_0000", &Offset{1, 3}, 4, []byte{0x00, 0x78}, []byte{0x0f}},
-		{"0000_0011_1100_0000", &Offset{0, 6}, 4, []byte{0xc0, 0x03}, []byte{0x0f}},
+		{"from head", Offset{0, 0}, 4, []byte{0x0f}, []byte{0x0f}},
+		{"0011_1000", Offset{0, 3}, 3, []byte{0x38}, []byte{0x07}},
+		{"0111_1000_0000_0000", Offset{1, 3}, 4, []byte{0x00, 0x78}, []byte{0x0f}},
+		{"0000_0011_1100_0000", Offset{0, 6}, 4, []byte{0xc0, 0x03}, []byte{0x0f}},
 	}
 
 	for _, v := range cases {
+		fmt.Printf("%s!!\n", v.name)
 		ret, err := GetBits(v.testdata, v.Offset, v.bit_size)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
@@ -158,8 +197,7 @@ func TestGetBits(t *testing.T) {
 	}
 
 	errcases := []testcase{
-		{"nil offset", nil, 3, []byte{0xff, 0xff}, []byte{}},
-		{"out of range", &Offset{0, 0}, 128, []byte{0xff}, []byte{}},
+		{"out of range", Offset{0, 0}, 128, []byte{0xff}, []byte{}},
 	}
 
 	for _, v := range errcases {

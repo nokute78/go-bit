@@ -15,6 +15,19 @@ func (off *Offset) Normalize() {
 	off.Bit = off.Bit % 8
 }
 
+func GetBit(b []byte, off Offset) (byte, error) {
+	off.Normalize()
+	if len(b) <= int(off.Byte) {
+		return 0x0, fmt.Errorf("out of range")
+	}
+
+	if b[off.Byte]&(1<<off.Bit) > 0x0 {
+		return 0x1, nil
+	} else {
+		return 0x0, nil
+	}
+}
+
 func Compare(a, b Offset) int {
 	a.Normalize()
 	b.Normalize()
@@ -56,11 +69,7 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 	return ret, nil
 }
 
-func GetBits(bytes []byte, off *Offset, bit_size uint64) (ret []byte, err error) {
-	if off == nil {
-		return []byte{}, fmt.Errorf("offset is nil")
-	}
-
+func GetBits(bytes []byte, off Offset, bit_size uint64) (ret []byte, err error) {
 	tail, err := off.AddOffset(Offset{Byte: 0, Bit: bit_size})
 	if err != nil {
 		return []byte{}, err
@@ -71,24 +80,23 @@ func GetBits(bytes []byte, off *Offset, bit_size uint64) (ret []byte, err error)
 		return []byte{}, fmt.Errorf("out of range")
 	}
 
-	length, err := tail.SubOffset(*off)
+	length, err := tail.SubOffset(off)
 	if err != nil {
 		return []byte{}, err
 	}
 
 	if length.Bit > 0 {
-		ret = make([]byte, length.Byte+1)
+		ret = make([]byte, length.Byte+1) /* e.g 3Byte+4Bit. Size should be 3 +1. */
 	} else {
 		ret = make([]byte, length.Byte)
 	}
+	partBytes := bytes[off.Byte : tail.Byte+1]
 
-	/*
-		partBytes := bytes[off.Byte: tail.Byte]
-
-		for i, v := range partBytes {
-			ret[i]
-		}
-	*/
+	for i, v := range partBytes {
+		fmt.Printf("%d: v = 0x%x\n", i, v)
+		ret[i] = v >> off.Bit
+		fmt.Printf("%d: ret = 0x%x\n", i, ret[i])
+	}
 
 	return []byte{}, nil
 }
