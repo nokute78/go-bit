@@ -1,0 +1,16 @@
+language: go
+sudo: false
+
+git:
+  depth: 1
+
+notifications:
+  email: false
+
+before_install:
+  - go get github.com/golang/lint/golint
+
+script:
+  - go vet ./...
+  - golint ./...
+  - go test -v -race ./...
