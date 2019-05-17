@@ -347,3 +347,26 @@ func TestSetBits(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkGetBits(b *testing.B) {
+	off := Offset{0, 6}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := GetBits([]byte{0xc0, 0xff, 0x7f}, off, 17)
+		if err != nil {
+			b.Fatalf("SetBits Error!")
+		}
+	}
+}
+
+func BenchmarkSetBits(b *testing.B) {
+	off := Offset{0, 6}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bytes := []byte{0xc0, 0xff, 0x7f}
+		err := SetBits(bytes, off, 17, []byte{0x00, 0x00, 0x00})
+		if err != nil {
+			b.Fatalf("SetBits Error!")
+		}
+	}
+}
