@@ -300,3 +300,50 @@ func TestGetBits(t *testing.T) {
 		}
 	}
 }
+
+func TestSetBits(t *testing.T) {
+	type testcase struct {
+		name  string
+		bytes []byte
+		Offset
+		bitSize  uint64
+		bits     []byte
+		expected []byte
+	}
+
+	cases := []testcase{
+		{"from head", []byte{0x00}, Offset{0, 0}, 4, []byte{0x0f}, []byte{0x0f}},
+		{"0011_1000 -> 0000_0000", []byte{0x00}, Offset{0, 3}, 3, []byte{0x07}, []byte{0x38}},
+		{"0000_0000 -> 0011_1000", []byte{0x38}, Offset{0, 3}, 3, []byte{0x00}, []byte{0x00}},
+		{"0111_1000_0000_0000 -> 0000_0000_0000_0000", []byte{0x00, 0x78}, Offset{1, 3}, 4, []byte{0x00}, []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0111_1000_0000_0000", []byte{0x00, 0x00}, Offset{1, 3}, 4, []byte{0x0f}, []byte{0x00, 0x78}},
+		{"0000_0011_1100_0000 -> 0000_0000_0000_0000", []byte{0xc0, 0x03}, Offset{0, 6}, 4, []byte{0x00}, []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0000_0011_1100_0000", []byte{0x00, 0x00}, Offset{0, 6}, 4, []byte{0x0f}, []byte{0xc0, 0x03}},
+		{"0111_1111_1100_0000 -> 0000_0000_0000_0000", []byte{0xc0, 0x7f}, Offset{0, 6}, 9, []byte{0x00, 0x00}, []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0111_1111_1100_0000", []byte{0x00, 0x00}, Offset{0, 6}, 9, []byte{0xff, 0x01}, []byte{0xc0, 0x7f}},
+		{"0111_1111_1111_1111_1100_0000 -> 0", []byte{0xc0, 0xff, 0x7f}, Offset{0, 6}, 17, []byte{0x00, 0x00, 0x00}, []byte{0x00, 0x00, 0x00}},
+		{"0 -> 0111_1111_1111_1111_1100_0000", []byte{0x00, 0x00, 0x00}, Offset{0, 6}, 17, []byte{0xff, 0xff, 0x01}, []byte{0xc0, 0xff, 0x7f}},
+	}
+
+	for _, v := range cases {
+		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if bytes.Compare(v.bytes, v.expected) != 0 {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, v.bytes, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x00}, Offset{0, 0}, 128, []byte{0x00}, []byte{}},
+		{"out of range2", []byte{0x00, 0x00}, Offset{0, 0}, 9, []byte{0x00}, []byte{}},
+	}
+
+	for _, v := range errcases {
+		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}

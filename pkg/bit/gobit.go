@@ -120,15 +120,51 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 	return ret, nil
 }
 
+func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
+	tail, err := off.AddOffset(Offset{Byte: 0, Bit: bitSize})
+	if err != nil {
+		return false, err
+	}
+	if len(b) <= int(tail.Byte) {
+		return false, fmt.Errorf("out of range")
+	}
+	return true, nil
+}
+
+// SetBits sets bits on bytes at off.
+// The length to set is bitSize.
+// SetBits returns error if error occurred.
+func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []byte) error {
+	_, err := isInRange(bytes, off, bitSize)
+	if err != nil {
+		return err
+	}
+
+	_, err = isInRange(setBits, Offset{0, 0}, bitSize)
+	if err != nil {
+		return err
+	}
+
+	for i := uint64(0); i < bitSize; i++ {
+		bit, err := GetBit(setBits, Offset{0, i})
+		if err != nil {
+			return err
+		}
+		err = SetBit(bytes, Offset{off.Byte, off.Bit + i}, bit)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // GetBits returns byte slice.
 // GetBits reads bytes slice from Offset off. Read size is bitSize in bit.
 func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []byte, err error) {
-	tail, err := off.AddOffset(Offset{Byte: 0, Bit: bitSize})
-	if err != nil {
+	ok, err := isInRange(bytes, off, bitSize)
+	if !ok || err != nil {
 		return []byte{}, err
-	}
-	if len(bytes) <= int(tail.Byte) {
-		return []byte{}, fmt.Errorf("out of range")
 	}
 
 	var retSize uint64
