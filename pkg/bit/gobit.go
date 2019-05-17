@@ -33,10 +33,8 @@ func GetBit(b []byte, off Offset) (byte, error) {
 	a, err := GetBitNotShift(b, off)
 	if a > 0x0 {
 		return 0x1, err
-	} else {
-		return 0x0, err
 	}
-
+	return 0x0, err
 }
 
 func GetBitNotShift(b []byte, off Offset) (byte, error) {
@@ -90,8 +88,8 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 	return ret, nil
 }
 
-func GetBits(bytes []byte, off Offset, bit_size uint64) (ret []byte, err error) {
-	tail, err := off.AddOffset(Offset{Byte: 0, Bit: bit_size})
+func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []byte, err error) {
+	tail, err := off.AddOffset(Offset{Byte: 0, Bit: bitSize})
 	if err != nil {
 		return []byte{}, err
 	}
@@ -99,20 +97,20 @@ func GetBits(bytes []byte, off Offset, bit_size uint64) (ret []byte, err error) 
 		return []byte{}, fmt.Errorf("out of range")
 	}
 
-	var ret_size uint64
-	if bit_size%8 > 0 {
-		ret_size = bit_size/8 + 1
+	var retSize uint64
+	if bitSize%8 > 0 {
+		retSize = bitSize/8 + 1
 	} else {
-		ret_size = bit_size
+		retSize = bitSize
 	}
-	ret = make([]byte, ret_size)
+	ret = make([]byte, retSize)
 
-	for i := uint64(0); i < bit_size; i++ {
-		bit_off, err := off.AddOffset(Offset{0, i})
+	for i := uint64(0); i < bitSize; i++ {
+		bitOff, err := off.AddOffset(Offset{0, i})
 		if err != nil {
 			return []byte{}, err
 		}
-		bit, err := GetBit(bytes, bit_off)
+		bit, err := GetBit(bytes, bitOff)
 		if err != nil {
 			return []byte{}, err
 		}

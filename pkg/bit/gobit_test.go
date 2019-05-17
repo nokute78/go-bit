@@ -222,7 +222,7 @@ func TestGetBits(t *testing.T) {
 	type testcase struct {
 		name string
 		Offset
-		bit_size uint64
+		bitSize  uint64
 		testdata []byte
 		expected []byte
 	}
@@ -237,7 +237,7 @@ func TestGetBits(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret, err := GetBits(v.testdata, v.Offset, v.bit_size)
+		ret, err := GetBits(v.testdata, v.Offset, v.bitSize)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
@@ -251,7 +251,7 @@ func TestGetBits(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		_, err := GetBits(v.testdata, v.Offset, v.bit_size)
+		_, err := GetBits(v.testdata, v.Offset, v.bitSize)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
