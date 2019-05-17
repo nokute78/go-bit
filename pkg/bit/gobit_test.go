@@ -132,7 +132,7 @@ func TestCompare(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret := Compare(v.a, v.b)
+		ret := v.a.Compare(v.b)
 		if ret != v.expected {
 			t.Errorf("%s: mismatch. given %d. expected %d", v.name, ret, v.expected)
 		}

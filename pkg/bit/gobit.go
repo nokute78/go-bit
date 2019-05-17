@@ -45,22 +45,22 @@ func GetBitNotShift(b []byte, off Offset) (byte, error) {
 	return b[off.Byte] & (1 << off.Bit), nil
 }
 
-// Compare returns an integer comparing two Offset.
-// The result will be 0 if a==b, -1 if a < b, and +1 if a>b.
-func Compare(a, b Offset) int {
-	a.Normalize()
+// Compare returns an integer comparing two Offsets.
+// The result will be 0 if off==b, -1 if off < b, and +1 if off > b.
+func (off Offset) Compare(b Offset) int {
+	off.Normalize()
 	b.Normalize()
 
-	if a.Byte > b.Byte {
+	if off.Byte > b.Byte {
 		return 1
-	} else if a.Byte < b.Byte {
+	} else if off.Byte < b.Byte {
 		return -1
 	}
 
-	/* a.Byte == b.Byte */
-	if a.Bit > b.Bit {
+	/* off.Byte == b.Byte */
+	if off.Bit > b.Bit {
 		return 1
-	} else if a.Bit < b.Bit {
+	} else if off.Bit < b.Bit {
 		return -1
 	}
 	return 0
@@ -78,7 +78,7 @@ func (off Offset) AddOffset(diff Offset) (Offset, error) {
 }
 
 func (off Offset) SubOffset(diff Offset) (Offset, error) {
-	if Compare(off, diff) < 0 {
+	if off.Compare(diff) < 0 {
 		return Offset{}, fmt.Errorf("negative")
 	}
 
