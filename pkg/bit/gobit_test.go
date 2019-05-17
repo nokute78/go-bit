@@ -40,6 +40,49 @@ func TestOffsetNormalize(t *testing.T) {
 	}
 }
 
+func TestSetBit(t *testing.T) {
+	type testcase struct {
+		name     string
+		bytes    []byte
+		off      Offset
+		bit      byte
+		expected []byte
+	}
+
+	cases := []testcase{
+		{"0000_0000[2] on", []byte{0x00}, Offset{0, 2}, 0x1, []byte{0x04}},
+		{"0000_0000[2] off", []byte{0x00}, Offset{0, 2}, 0x0, []byte{0x00}},
+		{"1111_1111[2] on", []byte{0xff}, Offset{0, 2}, 0x1, []byte{0xff}},
+		{"1111_1111[2] off", []byte{0xff}, Offset{0, 2}, 0x0, []byte{0xfb}},
+		{"0000_0000_0000_0000[9] on", []byte{0x00, 0x00}, Offset{0, 9}, 0x1, []byte{0x00, 0x02}},
+		{"0000_0000_0000_0000[9] off", []byte{0x00, 0x00}, Offset{0, 9}, 0x0, []byte{0x00, 0x00}},
+		{"1111_1111_1111_1111[9] on", []byte{0xff, 0xff}, Offset{0, 9}, 0x1, []byte{0xff, 0xff}},
+		{"1111_1111_1111_1111[9] off", []byte{0xff, 0xff}, Offset{0, 9}, 0x0, []byte{0xff, 0xfd}},
+	}
+
+	for _, v := range cases {
+		err := SetBit(v.bytes, v.off, v.bit)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if bytes.Compare(v.bytes, v.expected) != 0 {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, v.bytes, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x0}, Offset{128, 0}, 0, []byte{0x0}},
+	}
+
+	for _, v := range errcases {
+		err := SetBit(v.bytes, v.off, v.bit)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+
+}
+
 func TestGetBit(t *testing.T) {
 	type testcase struct {
 		name     string

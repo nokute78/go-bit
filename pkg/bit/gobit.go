@@ -35,6 +35,23 @@ func (off *Offset) Normalize() {
 	off.Bit = off.Bit % 8
 }
 
+// SetBit sets bit on b at off.
+// Bit is 0 if val == 0, 1 if val > 0.
+// SetBit returns error if error occurred.
+func SetBit(b []byte, off Offset, val byte) error {
+	off.Normalize()
+	if len(b) <= int(off.Byte) {
+		return fmt.Errorf("out of range")
+	}
+
+	if val > 0 {
+		b[off.Byte] |= 1 << off.Bit
+	} else {
+		b[off.Byte] &= ^(1 << off.Bit)
+	}
+	return nil
+}
+
 // GetBit returns 1 or 0.
 // GetBit reads b at Offset off, returns the bit.
 func GetBit(b []byte, off Offset) (byte, error) {
