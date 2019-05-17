@@ -1,4 +1,3 @@
-    
 /*
    Copyright 2019 Takahiro Yamashita
    Licensed under the Apache License, Version 2.0 (the "License");
@@ -140,7 +139,7 @@ func TestCompare(t *testing.T) {
 	}
 }
 
-func TestSizeInBit(t *testing.T) {
+func TestOffsetInBit(t *testing.T) {
 	type testcase struct {
 		name     string
 		a        Offset
@@ -154,7 +153,7 @@ func TestSizeInBit(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret := v.a.SizeInBit()
+		ret := v.a.OffsetInBit()
 		if ret != v.expected {
 			t.Errorf("%s: mismatch. given %d. expected %d", v.name, ret, v.expected)
 		}

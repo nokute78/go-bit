@@ -1,4 +1,3 @@
-    
 /*
    Copyright 2019 Takahiro Yamashita
    Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +11,7 @@
    limitations under the License.
 */
 
+// Package bit provides functions for bit.
 package bit
 
 import (
@@ -47,6 +47,8 @@ func GetBitNotShift(b []byte, off Offset) (byte, error) {
 	return b[off.Byte] & (1 << off.Bit), nil
 }
 
+// Compare returns an integer comparing two Offset.
+// The result will be 0 if a==b, -1 if a < b, and +1 if a>b.
 func Compare(a, b Offset) int {
 	a.Normalize()
 	b.Normalize()
@@ -66,7 +68,7 @@ func Compare(a, b Offset) int {
 	return 0
 }
 
-func (off Offset) SizeInBit() uint64 {
+func (off Offset) OffsetInBit() uint64 {
 	return off.Byte*8 + off.Bit
 }
 
@@ -82,7 +84,7 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 		return Offset{}, fmt.Errorf("negative")
 	}
 
-	ret := Offset{Byte: 0, Bit: off.SizeInBit() - diff.SizeInBit()}
+	ret := Offset{Byte: 0, Bit: off.OffsetInBit() - diff.OffsetInBit()}
 	ret.Normalize()
 
 	return ret, nil
