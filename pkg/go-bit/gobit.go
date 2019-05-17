@@ -16,16 +16,21 @@ func (off *Offset) Normalize() {
 }
 
 func GetBit(b []byte, off Offset) (byte, error) {
+	a, err := GetBitNotShift(b, off)
+	if a > 0x0 {
+		return 0x1, err
+	} else {
+		return 0x0, err
+	}
+
+}
+
+func GetBitNotShift(b []byte, off Offset) (byte, error) {
 	off.Normalize()
 	if len(b) <= int(off.Byte) {
 		return 0x0, fmt.Errorf("out of range")
 	}
-
-	if b[off.Byte]&(1<<off.Bit) > 0x0 {
-		return 0x1, nil
-	} else {
-		return 0x0, nil
-	}
+	return b[off.Byte] & (1 << off.Bit), nil
 }
 
 func Compare(a, b Offset) int {
@@ -74,29 +79,28 @@ func GetBits(bytes []byte, off Offset, bit_size uint64) (ret []byte, err error) 
 	if err != nil {
 		return []byte{}, err
 	}
-
-	tail.Normalize()
 	if len(bytes) <= int(tail.Byte) {
 		return []byte{}, fmt.Errorf("out of range")
 	}
 
-	length, err := tail.SubOffset(off)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	if length.Bit > 0 {
-		ret = make([]byte, length.Byte+1) /* e.g 3Byte+4Bit. Size should be 3 +1. */
+	var ret_size uint64
+	if bit_size%8 > 0 {
+		ret_size = bit_size/8 + 1
 	} else {
-		ret = make([]byte, length.Byte)
+		ret_size = bit_size
 	}
-	partBytes := bytes[off.Byte : tail.Byte+1]
+	ret = make([]byte, ret_size)
 
-	for i, v := range partBytes {
-		fmt.Printf("%d: v = 0x%x\n", i, v)
-		ret[i] = v >> off.Bit
-		fmt.Printf("%d: ret = 0x%x\n", i, ret[i])
+	for i := uint64(0); i < bit_size; i++ {
+		bit_off, err := off.AddOffset(Offset{0, i})
+		if err != nil {
+			return []byte{}, err
+		}
+		bit, err := GetBit(bytes, bit_off)
+		if err != nil {
+			return []byte{}, err
+		}
+		ret[i/8] = ret[i/8] | (bit << (i % 8))
 	}
-
-	return []byte{}, nil
+	return ret, nil
 }

@@ -2,7 +2,6 @@ package gobit
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 )
 
@@ -59,6 +58,43 @@ func TestGetBit(t *testing.T) {
 
 	for _, v := range errcases {
 		_, err := GetBit(v.bytes, v.off)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}
+
+func TestGetBitNotShift(t *testing.T) {
+	type testcase struct {
+		name     string
+		bytes    []byte
+		off      Offset
+		expected byte
+	}
+
+	cases := []testcase{
+		{"0000_1000[2]", []byte{0x08}, Offset{0, 2}, 0x0},
+		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, 0x08},
+		{"0000_0100_0000_0000[8+2]", []byte{0x00, 0x04}, Offset{1, 2}, 0x04},
+		{"0000_0100_0000_0000[8+1]", []byte{0x00, 0x04}, Offset{1, 1}, 0x0},
+	}
+
+	for _, v := range cases {
+		b, err := GetBitNotShift(v.bytes, v.off)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if b != v.expected {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, b, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x0}, Offset{128, 0}, 0},
+	}
+
+	for _, v := range errcases {
+		_, err := GetBitNotShift(v.bytes, v.off)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -183,16 +219,17 @@ func TestGetBits(t *testing.T) {
 		{"0011_1000", Offset{0, 3}, 3, []byte{0x38}, []byte{0x07}},
 		{"0111_1000_0000_0000", Offset{1, 3}, 4, []byte{0x00, 0x78}, []byte{0x0f}},
 		{"0000_0011_1100_0000", Offset{0, 6}, 4, []byte{0xc0, 0x03}, []byte{0x0f}},
+		{"0111_1111_1100_0000", Offset{0, 6}, 9, []byte{0xc0, 0x7f}, []byte{0xff, 0x01}},
+		{"0111_1111_1111_1111_1100_0000", Offset{0, 6}, 17, []byte{0xc0, 0xff, 0x7f}, []byte{0xff, 0xff, 0x01}},
 	}
 
 	for _, v := range cases {
-		fmt.Printf("%s!!\n", v.name)
 		ret, err := GetBits(v.testdata, v.Offset, v.bit_size)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
 		if bytes.Compare(ret, v.expected) != 0 {
-			t.Errorf("%s: mismatch. given %v. expected %v", v.name, ret, v.expected)
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, ret, v.expected)
 		}
 	}
 
