@@ -18,17 +18,25 @@ import (
 	"fmt"
 )
 
+// Offset represents offset to access bits in byte slices.
 type Offset struct {
 	Byte uint64 /* Offset in byte. */
 	Bit  uint64 /* Offset in bit.  */
 }
 
+// Normalize updates off.Byte if off.Bit >= 8.
+// e.g. Offset{Byte: 3, Bit: 53} -> Offset{Byte: 9, Bit: 5}
 func (off *Offset) Normalize() {
+	if off.Bit < 8 {
+		return
+	}
 	b := off.Bit / 8
 	off.Byte = off.Byte + b
 	off.Bit = off.Bit % 8
 }
 
+// GetBit returns 1 or 0.
+// GetBit reads b at Offset off, returns the bit.
 func GetBit(b []byte, off Offset) (byte, error) {
 	a, err := GetBitNotShift(b, off)
 	if a > 0x0 {
@@ -37,6 +45,8 @@ func GetBit(b []byte, off Offset) (byte, error) {
 	return 0x0, err
 }
 
+// GetBitNotShift reads b at Offset off, returns the bit.
+// Return value is not bit shifted.
 func GetBitNotShift(b []byte, off Offset) (byte, error) {
 	off.Normalize()
 	if len(b) <= int(off.Byte) {
@@ -66,10 +76,13 @@ func (off Offset) Compare(b Offset) int {
 	return 0
 }
 
+// OffsetInBit returns offset in bit.
+// e.g. Offset{Byte:3, Bit:2} -> 26.
 func (off Offset) OffsetInBit() uint64 {
 	return off.Byte*8 + off.Bit
 }
 
+// AddOffset adds diff and returns new Offset.
 func (off Offset) AddOffset(diff Offset) (Offset, error) {
 	ret := Offset{Byte: off.Byte + diff.Byte, Bit: off.Bit + diff.Bit}
 	ret.Normalize()
@@ -77,6 +90,8 @@ func (off Offset) AddOffset(diff Offset) (Offset, error) {
 	return ret, nil
 }
 
+// SubOffset subs diff and returns new Offset.
+// diff must be larger then off.
 func (off Offset) SubOffset(diff Offset) (Offset, error) {
 	if off.Compare(diff) < 0 {
 		return Offset{}, fmt.Errorf("negative")
@@ -88,6 +103,8 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 	return ret, nil
 }
 
+// GetBits returns byte slice.
+// GetBits reads bytes slice from Offset off. Read size is bitSize in bit.
 func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []byte, err error) {
 	tail, err := off.AddOffset(Offset{Byte: 0, Bit: bitSize})
 	if err != nil {
