@@ -348,6 +348,30 @@ func TestSetBits(t *testing.T) {
 	}
 }
 
+func TestGetBitsRetSize(t *testing.T) {
+	type testcase struct {
+		name    string
+		off     Offset
+		bitsize uint64
+		retsize int
+	}
+
+	cases := []testcase{
+		{"bitsize 7", Offset{Byte: 0, Bit: 0}, 7, 1},
+		{"bitsize 8", Offset{Byte: 0, Bit: 0}, 8, 1},
+	}
+
+	for _, v := range cases {
+		ret, err := GetBits([]byte{0xff, 0xff, 0xff, 0xff}, v.off, v.bitsize)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if len(ret) != v.retsize {
+			t.Errorf("%s: mismatch. given %d. expected %d", v.name, len(ret), v.retsize)
+		}
+	}
+}
+
 func BenchmarkGetBits(b *testing.B) {
 	off := Offset{0, 6}
 	b.ResetTimer()
