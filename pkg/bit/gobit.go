@@ -171,7 +171,7 @@ func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []byte, err error) {
 	if bitSize%8 > 0 {
 		retSize = bitSize/8 + 1
 	} else {
-		retSize = bitSize
+		retSize = bitSize / 8
 	}
 	ret = make([]byte, retSize)
 
