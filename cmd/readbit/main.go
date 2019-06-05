@@ -33,10 +33,11 @@ type config struct {
 // CLI has In/Out/Err streams.
 // Flags is option.
 type CLI struct {
-	OutStream *os.File
-	InStream  *os.File
-	ErrStream *os.File
-	Flags     *flag.FlagSet
+	OutStream     io.Writer
+	InStream      *os.File
+	ErrStream     io.Writer
+	Flags         *flag.FlagSet
+	forceTerminal bool
 }
 
 func (cli *CLI) showBits(in string, b []byte, cnf *config) {
@@ -63,7 +64,7 @@ func (cli *CLI) readBits(in io.Reader, cnf *config) ([]byte, error) {
 func (cli *CLI) readStdin(cnf *config) int {
 	buf, err := cli.readBits(cli.InStream, cnf)
 	if err != nil {
-		fmt.Fprintf(cli.ErrStream, "%s\n", err)
+		fmt.Fprintf(cli.ErrStream, "readStdin :%s\n", err)
 		return ExitCmdError
 	}
 
@@ -84,7 +85,7 @@ func (cli *CLI) readFiles(files []string, cnf *config) (ret int) {
 
 		buf, err := cli.readBits(f, cnf)
 		if err != nil {
-			fmt.Fprintf(cli.ErrStream, "%s\n", err)
+			fmt.Fprintf(cli.ErrStream, "readFiles :%s\n", err)
 			continue
 		}
 		cli.showBits(v, buf, cnf)
@@ -97,7 +98,7 @@ func (cli *CLI) readFiles(files []string, cnf *config) (ret int) {
 func (cli *CLI) checkOption(args []string) (*config, error) {
 	config := &config{}
 
-	cli.Flags = flag.NewFlagSet(filepath.Base(args[0]), flag.ContinueOnError)
+	cli.Flags = flag.NewFlagSet(filepath.Base(args[0]), flag.ExitOnError)
 
 	cli.Flags.BoolVar(&config.verbose, "v", false, "verbose mode")
 	cli.Flags.BoolVar(&config.showVersion, "V", false, "show version")
@@ -108,6 +109,10 @@ func (cli *CLI) checkOption(args []string) (*config, error) {
 	cli.Flags.Parse(args[1:])
 
 	config.terminalMode = isatty.IsTerminal(cli.InStream.Fd())
+	if cli.forceTerminal {
+		// for testing
+		config.terminalMode = true
+	}
 
 	if config.showVersion {
 		return config, nil
