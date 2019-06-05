@@ -35,6 +35,11 @@ func main() {
 	fmt.Printf("0x%x\n", ret) /* Print 0x0f = 1111b */
 }
 ```
+
+## Tool
+* [readbit](cmd/readbit/README.md)
+
+
 ## License
 
 [Apache License v2.0](https://www.apache.org/licenses/LICENSE-2.0)
