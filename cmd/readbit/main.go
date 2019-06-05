@@ -56,7 +56,7 @@ func (cli *CLI) readBits(in io.Reader, cnf *config) ([]byte, error) {
 
 	ret, err := bit.GetBits(buf, bit.Offset{Byte: cnf.byte, Bit: cnf.bit}, cnf.bitsize)
 	if err != nil {
-		return []byte{}, fmt.Errorf("GetBits: %s", err)
+		return []byte{}, fmt.Errorf("GetBits: %s, len=%d size=%d", err, len(buf), cnf.bitsize)
 	}
 	return ret, nil
 }

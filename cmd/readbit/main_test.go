@@ -14,7 +14,33 @@ func runHelper(cli *CLI, args []string, t *testing.T) {
 	ret := cli.Run(args)
 
 	if ret != ExitOK {
-		t.Errorf("Return Code %d is not Success", ret)
+		t.Errorf("Return Code %d is not ExitOK", ret)
+	}
+}
+
+func TestReadStdin(t *testing.T) {
+	tempfile, err := ioutil.TempFile("", "TestReadStdin")
+	if err != nil {
+		t.Fatalf("ioutil.TempFile error: %s", err)
+	}
+	defer os.Remove(tempfile.Name())
+	defer tempfile.Close()
+
+	n, err := tempfile.Write([]byte{0xff, 0x07})
+	if err != nil {
+		t.Fatalf("File.Write error: %s, n=%d", err, n)
+	}
+
+	retOutput := make([]byte, 16)
+	out := bytes.NewBuffer(retOutput)
+
+	cli := &CLI{OutStream: out, ErrStream: os.Stderr, InStream: tempfile}
+
+	tempfile.Seek(0, 0) // to read from head of file
+	runHelper(cli, []string{"hoge", "-s", "11"}, t)
+
+	if strings.Contains(string(retOutput), "0xff07") {
+		t.Errorf("ReadFile Error. got %s want %s", string(retOutput), "0xff07")
 	}
 }
 
@@ -24,6 +50,7 @@ func TestReadFiles(t *testing.T) {
 		t.Fatalf("ioutil.TempFile error: %s", err)
 	}
 	defer os.Remove(tempfile.Name())
+	defer tempfile.Close()
 
 	n, err := tempfile.Write([]byte{0xff, 0x07})
 	if err != nil {
