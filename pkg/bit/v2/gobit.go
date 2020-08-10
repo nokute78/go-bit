@@ -23,7 +23,7 @@ var (
 	ErrOutOfRange = errors.New("out of range")
 )
 
-type Bit = byte
+type Bit = bool
 
 // BitsToBytes converts the unit. bit -> byte.
 func BitsToBytes(b []Bit) []byte {
@@ -36,8 +36,14 @@ func BitsToBytes(b []Bit) []byte {
 
 	idx := 0
 	bitc := 0
+	var v byte
 	for i := 0; i < len(b); i++ {
-		ret[idx] = ret[idx] | (b[i] << bitc)
+		if b[i] {
+			v = 1
+		} else {
+			v = 0
+		}
+		ret[idx] = ret[idx] | (v << bitc)
 
 		bitc += 1
 		if bitc == 8 {
@@ -123,7 +129,7 @@ func SetBit(b []byte, off Offset, val Bit) error {
 		return ErrOutOfRange
 	}
 
-	if val > 0 {
+	if val {
 		b[off.Byte] |= 1 << off.Bit
 	} else {
 		b[off.Byte] &= ^(1 << off.Bit)
@@ -134,7 +140,14 @@ func SetBit(b []byte, off Offset, val Bit) error {
 // GetBit returns 1 or 0.
 // GetBit reads b at Offset off, returns the bit.
 func GetBit(b []byte, off Offset) (Bit, error) {
-	return GetBitAsByte(b, off)
+	v, err := GetBitAsByte(b, off)
+	if err != nil {
+		return false, err
+	}
+	if v > 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
 // GetBitAsByte returns byte (1 or 0).
@@ -172,18 +185,20 @@ func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
 // The length to set is bitSize.
 // SetBits returns error if error occurred.
 func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []Bit) error {
+	sb := BitsToBytes(setBits)
+
 	_, err := isInRange(bytes, off, bitSize)
 	if err != nil {
 		return err
 	}
 
-	_, err = isInRange(setBits, Offset{0, 0}, bitSize)
+	_, err = isInRange(sb, Offset{0, 0}, bitSize)
 	if err != nil {
 		return err
 	}
 
 	for i := uint64(0); i < bitSize; i++ {
-		bit, err := GetBit(setBits, Offset{0, i})
+		bit, err := GetBit(sb, Offset{0, i})
 		if err != nil {
 			return err
 		}
@@ -244,7 +259,9 @@ func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64) (ret []byte, err er
 		if err != nil {
 			return []byte{}, err
 		}
-		ret[i/8] = ret[i/8] | (bit << (i % 8))
+		if bit {
+			ret[i/8] = ret[i/8] | (1 << (i % 8))
+		}
 	}
 	return ret, nil
 }

@@ -27,9 +27,9 @@ func ExampleGetBit() {
 		fmt.Printf("error:%s\n", err)
 	}
 
-	fmt.Printf("0x%x\n", ret)
+	fmt.Printf("%t\n", ret)
 	// Output:
-	// 0x1
+	// true
 }
 
 func ExampleGetBitAsByteNotShift() {
@@ -79,7 +79,7 @@ func ExampleSetBit() {
 	b := []byte{0x00, 0x00} /* 0000_0000 0000_0000 in bit */
 
 	off := bit.Offset{Byte: 0, Bit: 15}
-	val := byte(0x01)
+	val := true
 
 	err := bit.SetBit(b, off, val)
 	if err != nil {
@@ -94,7 +94,7 @@ func ExampleSetBits() {
 	b := []byte{0x00, 0x00} /* 0000_0000 0000_0000 in bit */
 
 	off := bit.Offset{Byte: 0, Bit: 8}
-	val := []byte{0x08} /* 0000_1000 in bit */
+	val := []bit.Bit{false, false, false, true} /* 0000_1000 in bit */
 
 	err := bit.SetBits(b, off, 4, val)
 	if err != nil {
