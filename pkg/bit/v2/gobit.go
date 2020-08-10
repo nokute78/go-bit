@@ -25,6 +25,30 @@ var (
 
 type Bit = byte
 
+// BitsToBytes converts the unit. bit -> byte.
+func BitsToBytes(b []Bit) []byte {
+	size := len(b) / 8
+	if len(b)%8 > 0 {
+		size += 1
+	}
+
+	ret := make([]byte, size)
+
+	idx := 0
+	bitc := 0
+	for i := 0; i < len(b); i++ {
+		ret[idx] = ret[idx] | (b[i] << bitc)
+
+		bitc += 1
+		if bitc == 8 {
+			bitc = 0
+			idx += 1
+		}
+	}
+
+	return ret
+}
+
 // Offset represents offset to access bits in byte slices.
 type Offset struct {
 	Byte uint64 /* Offset in byte. */

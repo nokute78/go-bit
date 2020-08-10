@@ -18,6 +18,26 @@ import (
 	"testing"
 )
 
+func TestBitsToBytes(t *testing.T) {
+	type testcase struct {
+		name   string
+		input  []Bit
+		expect []byte
+	}
+
+	cases := []testcase{
+		{"normal", []Bit{0, 1, 1, 1}, []byte{0xe}},
+		{"2byte", []Bit{0, 1, 1, 1, 0, 0, 0, 0, 1}, []byte{0xe, 0x1}},
+	}
+
+	for _, v := range cases {
+		ret := BitsToBytes(v.input)
+		if bytes.Compare(ret, v.expect) != 0 {
+			t.Errorf("%s: given=%v expect=%v", v.name, ret, v.expect)
+		}
+	}
+}
+
 func TestOffsetNormalize(t *testing.T) {
 	type testcase struct {
 		name   string
