@@ -1,9 +1,12 @@
 /*
-   Copyright 2019 Takahiro Yamashita
+   Copyright 2020 Takahiro Yamashita
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
+
        http://www.apache.org/licenses/LICENSE-2.0
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -142,13 +145,20 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 	return ret, nil
 }
 
+func checkRange(b []byte, off Offset) error {
+	if len(b) < int(off.Byte) || (len(b) == int(off.Byte) && int(off.Bit) > 0) {
+		return ErrOutOfRange
+	}
+	return nil
+}
+
 // SetBit sets bit on b at off.
 // Bit is 0 if val == 0, 1 if val > 0.
 // SetBit returns error if error occurred.
 func SetBit(b []byte, off Offset, val Bit) error {
 	off.Normalize()
-	if len(b) <= int(off.Byte) {
-		return fmt.Errorf("SetBit:%w", ErrOutOfRange)
+	if err := checkRange(b, off); err != nil {
+		return fmt.Errorf("SetBit:%w", err)
 	}
 
 	if val {
@@ -186,8 +196,8 @@ func GetBitAsByte(b []byte, off Offset) (byte, error) {
 // Return value is not bit shifted.
 func GetBitAsByteNotShift(b []byte, off Offset) (byte, error) {
 	off.Normalize()
-	if len(b) <= int(off.Byte) {
-		return 0x0, fmt.Errorf("GetBitAsByteNotShift:%w", ErrOutOfRange)
+	if err := checkRange(b, off); err != nil {
+		return 0x0, fmt.Errorf("GetBitAsByteNotShift:%w", err)
 	}
 	return b[off.Byte] & (1 << off.Bit), nil
 }
@@ -197,8 +207,8 @@ func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(b) < int(tail.Byte) || (len(b) == int(tail.Byte) && int(tail.Bit) > 0) {
-		return false, fmt.Errorf("isInRange:%w", ErrOutOfRange)
+	if err := checkRange(b, tail); err != nil {
+		return false, fmt.Errorf("isInRange:%w", err)
 	}
 	return true, nil
 }
@@ -264,13 +274,7 @@ func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64) (ret []byte, err er
 		return []byte{}, err
 	}
 
-	var retSize uint64
-	if bitSize%8 > 0 {
-		retSize = bitSize/8 + 1
-	} else {
-		retSize = bitSize / 8
-	}
-	ret = make([]byte, retSize)
+	ret = make([]byte, sizeOfBits(int(bitSize)))
 
 	for i := uint64(0); i < bitSize; i++ {
 		bitOff, err := off.AddOffset(Offset{0, i})

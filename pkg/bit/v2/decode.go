@@ -142,6 +142,8 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 	return nil
 }
 
+// Read reads structured binary data from i into data.
+// Data must be a pointer to a fixed-size value.
 func Read(r io.Reader, order binary.ByteOrder, data interface{}) error {
 	v := reflect.ValueOf(data)
 	switch v.Kind() {
