@@ -79,7 +79,7 @@ func ExampleSetBit() {
 	b := []byte{0x00, 0x00} /* 0000_0000 0000_0000 in bit */
 
 	off := bit.Offset{Byte: 0, Bit: 15}
-	val := true
+	val := bit.Bit(true)
 
 	err := bit.SetBit(b, off, val)
 	if err != nil {

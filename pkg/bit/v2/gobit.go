@@ -23,14 +23,18 @@ var (
 	ErrOutOfRange = errors.New("out of range")
 )
 
-type Bit = bool
+type Bit bool
+
+func (b Bit) String() string {
+	if b {
+		return "1"
+	}
+	return "0"
+}
 
 // BitsToBytes converts the unit. bit -> byte.
 func BitsToBytes(b []Bit) []byte {
-	size := len(b) / 8
-	if len(b)%8 > 0 {
-		size += 1
-	}
+	size := SizeOfBits(b)
 
 	ret := make([]byte, size)
 
@@ -55,10 +59,28 @@ func BitsToBytes(b []Bit) []byte {
 	return ret
 }
 
+// SizeOfBits returns size of []Bit slice in byte.
+// e.g. It returns 2 len([]Bit) == 9.
+func SizeOfBits(b []Bit) int {
+	return sizeOfBits(len(b))
+}
+
+func sizeOfBits(bitsize int) int {
+	ret := bitsize / 8
+	if bitsize%8 > 0 {
+		ret += 1
+	}
+	return ret
+}
+
 // Offset represents offset to access bits in byte slices.
 type Offset struct {
 	Byte uint64 /* Offset in byte. */
 	Bit  uint64 /* Offset in bit.  */
+}
+
+func (o Offset) String() string {
+	return fmt.Sprintf("[Byte:%d,Bit:%d]", o.Byte, o.Bit)
 }
 
 // Normalize updates off.Byte if off.Bit >= 8.
@@ -126,7 +148,7 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 func SetBit(b []byte, off Offset, val Bit) error {
 	off.Normalize()
 	if len(b) <= int(off.Byte) {
-		return ErrOutOfRange
+		return fmt.Errorf("SetBit:%w", ErrOutOfRange)
 	}
 
 	if val {
@@ -165,7 +187,7 @@ func GetBitAsByte(b []byte, off Offset) (byte, error) {
 func GetBitAsByteNotShift(b []byte, off Offset) (byte, error) {
 	off.Normalize()
 	if len(b) <= int(off.Byte) {
-		return 0x0, ErrOutOfRange
+		return 0x0, fmt.Errorf("GetBitAsByteNotShift:%w", ErrOutOfRange)
 	}
 	return b[off.Byte] & (1 << off.Bit), nil
 }
@@ -175,8 +197,8 @@ func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(b) <= int(tail.Byte) {
-		return false, ErrOutOfRange
+	if len(b) < int(tail.Byte) || (len(b) == int(tail.Byte) && int(tail.Bit) > 0) {
+		return false, fmt.Errorf("isInRange:%w", ErrOutOfRange)
 	}
 	return true, nil
 }
@@ -264,4 +286,15 @@ func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64) (ret []byte, err er
 		}
 	}
 	return ret, nil
+}
+
+// NewBits generates slice of Bit.
+func NewBits(size uint64, v Bit) []Bit {
+	b := make([]Bit, size)
+	if v {
+		for i := 0; i < int(size); i++ {
+			b[i] = true
+		}
+	}
+	return b
 }
