@@ -158,3 +158,26 @@ func TestReadStruct(t *testing.T) {
 		t.Errorf("Data: given=%v expect=%v", s.Data, expect)
 	}
 }
+
+func BenchmarkReadStruct(b *testing.B) {
+	type Sample struct {
+		Header   byte
+		Reserved [16]bit.Bit
+		Id       [4]bit.Bit
+		Rev      [4]bit.Bit
+		Data     [4]byte
+	}
+	s := Sample{}
+	br := bytes.NewReader([]byte{0x7f, 0xff, 0xff, 0x51, 0xaa, 0xbb, 0xcc, 0xdd})
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := br.Seek(0, io.SeekStart)
+		if err != nil {
+			b.Fatalf("error:%s", err)
+		}
+		err = bit.Read(br, binary.LittleEndian, &s)
+		if err != nil {
+			b.Fatalf("error:%s", err)
+		}
+	}
+}
