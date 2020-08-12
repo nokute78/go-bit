@@ -19,6 +19,7 @@ package bit_test
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"github.com/nokute78/go-bit/pkg/bit/v2"
 	"io"
 	"testing"
@@ -156,6 +157,114 @@ func TestReadStruct(t *testing.T) {
 	}
 	if bytes.Compare(expect, s.Data[:]) != 0 {
 		t.Errorf("Data: given=%v expect=%v", s.Data, expect)
+	}
+}
+
+func TestStructTag(t *testing.T) {
+	type Sample struct {
+		Bit      [4]bit.Bit
+		Reserved [4]bit.Bit `bit:"-"` // ignored
+		Val      byte
+	}
+
+	s := Sample{}
+	br := bytes.NewReader([]byte{0xff, 0xaa})
+	if err := bit.Read(br, binary.LittleEndian, &s); err != nil {
+		t.Fatalf("error:%s\n", err)
+	}
+
+	// ignored field
+	for i, v := range s.Reserved {
+		if v {
+			t.Errorf("%d:bit is 1!?", i)
+		}
+	}
+
+	for i, v := range s.Bit {
+		if !v {
+			t.Errorf("%d:bit is 0!?", i)
+		}
+	}
+	if s.Val != 0xaf {
+		t.Errorf("given=0x%x expect=0xaf", s.Val)
+	}
+
+	// skip case
+	type Sample2 struct {
+		Bit      [4]bit.Bit
+		Reserved [4]bit.Bit `bit:"skip"` // skip
+		Val      byte
+	}
+
+	s2 := Sample2{}
+	br = bytes.NewReader([]byte{0xff, 0xaa})
+	if err := bit.Read(br, binary.LittleEndian, &s2); err != nil {
+		t.Fatalf("error:%s\n", err)
+	}
+
+	// ignored field
+	for i, v := range s2.Reserved {
+		if v {
+			t.Errorf("%d:bit is 1!?", i)
+		}
+	}
+
+	for i, v := range s2.Bit {
+		if !v {
+			t.Errorf("%d:bit is 0!?", i)
+		}
+	}
+	if s2.Val != 0xaa {
+		t.Errorf("given=0x%x expect=0xaa", s2.Val)
+	}
+}
+
+func TestReadBigEndian(t *testing.T) {
+	type TcpHeader struct {
+		SrcPort    uint16
+		DstPort    uint16
+		SeqNo      uint32
+		AckNo      uint32
+		HeaderLen  [4]bit.Bit
+		Reserved   [3]bit.Bit
+		NS         bit.Bit
+		CWR        bit.Bit
+		ECE        bit.Bit
+		URG        bit.Bit
+		ACK        bit.Bit
+		PSH        bit.Bit
+		RST        bit.Bit
+		SYN        bit.Bit
+		FIN        bit.Bit
+		WinSize    uint16
+		CheckSum   uint16
+		EmePointer uint16
+	}
+
+	b, err := hex.DecodeString("900601177214f1140000000060022238a92c0000020405b4")
+	if err != nil {
+		t.Errorf("err:%s\n", err)
+	}
+	s := TcpHeader{}
+	br := bytes.NewReader(b)
+	if err := bit.Read(br, binary.BigEndian, &s); err != nil {
+		t.Fatalf("error:%s", err)
+	}
+	if s.SrcPort != 0x9006 {
+		t.Errorf("SrcPort:given=0x%x expect=0x%x", s.SrcPort, 0x9006)
+	}
+	if s.SrcPort != 0x9006 {
+		t.Errorf("SrcPort:given=0x%x expect=0x%x", s.SrcPort, 0x9006)
+	}
+	if s.DstPort != 0x117 {
+		t.Errorf("DstPort:given=0x%x expect=0x%x", s.DstPort, 0x117)
+	}
+	if !s.SYN {
+		t.Errorf("syn is false")
+	}
+	h := bit.BitsToBytes(s.HeaderLen[:], binary.LittleEndian)
+	if h[0] != 0x6 {
+		t.Errorf("Len:given=0x&%x expect=0x%x", h[0], 6)
 	}
 }
 

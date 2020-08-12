@@ -29,11 +29,11 @@ const (
 )
 
 // tagConfig represents StructTag.
-//   "-" : ignore the field
-//   "16", "32", "64" : read size to anotate
+//   "-"   : ignore the field
+//   "skip": ignore but offset will be updated
 type tagConfig struct {
 	ignore bool
-	size   int // must be 16, 32, 64
+	skip   bool
 }
 
 func parseStructTag(t reflect.StructTag) *tagConfig {
@@ -48,6 +48,9 @@ func parseStructTag(t reflect.StructTag) *tagConfig {
 		switch v {
 		case "-":
 			ret.ignore = true
+			return ret
+		case "skip":
+			ret.skip = true
 			return ret
 		}
 	}
@@ -120,15 +123,6 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 		}
 		val = reflect.ValueOf(order.Uint16(ret))
 		off = Offset{2, 0}
-	case *uint16:
-		ret, err := GetBitsAsByte(b, *o, 16, binary.LittleEndian)
-		if err != nil {
-			return err
-		}
-		val = reflect.ValueOf(order.Uint16(ret))
-		off = Offset{2, 0}
-		v = reflect.Indirect(v)
-
 	case uint32:
 		ret, err := GetBitsAsByte(b, *o, 32, binary.LittleEndian)
 		if err != nil {
@@ -173,6 +167,14 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 				if cnf != nil {
 					if cnf.ignore {
 						continue
+					} else if cnf.skip {
+						var bitSize int
+						sizeOfValueInBits(&bitSize, v.Field(i), true)
+						*o, err = o.AddOffset(Offset{Bit: uint64(bitSize)})
+						if err != nil {
+							return err
+						}
+						continue
 					}
 				}
 				err := fillData(b, order, v.Field(i), o)
@@ -202,6 +204,10 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 
 // Read reads structured binary data from i into data.
 // Data must be a pointer to a fixed-size value.
+// Not exported struct field is ignored.
+//   Supports StructTag.
+//       `bit:"skip"` : ignore the field. Skip X bits which is the size of the field. It is useful for reserved field.
+//       `bit:"-"`    : ignore the field. Offset is not changed.
 func Read(r io.Reader, order binary.ByteOrder, data interface{}) error {
 	v := reflect.ValueOf(data)
 	switch v.Kind() {
