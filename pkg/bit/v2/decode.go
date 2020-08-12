@@ -171,7 +171,6 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 				f := v.Type().Field(i)
 				cnf := parseStructTag(f.Tag)
 				if cnf != nil {
-					fmt.Printf("cnf found!!: type=%s\n", v.Type())
 					if cnf.ignore {
 						continue
 					}
@@ -191,7 +190,7 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 	if v.CanSet() {
 		v.Set(val)
 	} else {
-		fmt.Println("can not set")
+		return fmt.Errorf("can not set %v\n", v)
 	}
 	*o, err = o.AddOffset(off)
 	if err != nil {
