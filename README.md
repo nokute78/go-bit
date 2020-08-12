@@ -59,7 +59,7 @@ func main() {
 
 	fmt.Printf("src=%d dst=%d\n", s.SrcPort, s.DstPort)
 	fmt.Printf("SeqNo=%d AckNo=%d\n", s.SeqNo, s.AckNo)
-	fmt.Printf("HeaderLen(raw)=0x%x\n", bit.BitsToBytes(s.HeaderLen[:], binary.BigEndian))
+	fmt.Printf("HeaderLen(raw)=%v\n", s.HeaderLen)
 	fmt.Printf("Ack=%t\n", s.ACK)
 }
 ```
