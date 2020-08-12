@@ -17,6 +17,7 @@
 package bit_test
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/nokute78/go-bit/pkg/bit/v2"
 )
@@ -25,7 +26,7 @@ func ExampleGetBit() {
 	b := []byte{0x00, 0x80} /* 1000_0000 0000_0000 in bit */
 
 	off := bit.Offset{Byte: 0, Bit: 15}
-	ret, err := bit.GetBit(b, off)
+	ret, err := bit.GetBit(b, off, binary.LittleEndian)
 	if err != nil {
 		fmt.Printf("error:%s\n", err)
 	}
@@ -39,7 +40,7 @@ func ExampleGetBitAsByteNotShift() {
 	b := []byte{0x00, 0x80} /* 1000_0000 0000_0000 in bit */
 
 	off := bit.Offset{Byte: 0, Bit: 15}
-	ret, err := bit.GetBitAsByteNotShift(b, off)
+	ret, err := bit.GetBitAsByteNotShift(b, off, binary.LittleEndian)
 	if err != nil {
 		fmt.Printf("error:%s\n", err)
 	}
@@ -55,7 +56,7 @@ func ExampleGetBitsAsByte() {
 	/* try to get 4bits(1111b) from 0111_1000 */
 	off := bit.Offset{Byte: 0, Bit: 3}
 
-	ret, err := bit.GetBitsAsByte(b, off, 4)
+	ret, err := bit.GetBitsAsByte(b, off, 4, binary.LittleEndian)
 	if err != nil {
 		fmt.Printf("error:%s\n", err)
 	}
@@ -84,7 +85,7 @@ func ExampleSetBit() {
 	off := bit.Offset{Byte: 0, Bit: 15}
 	val := bit.Bit(true)
 
-	err := bit.SetBit(b, off, val)
+	err := bit.SetBit(b, off, val, binary.LittleEndian)
 	if err != nil {
 		fmt.Printf("error:%s\n", err)
 	}
@@ -99,7 +100,7 @@ func ExampleSetBits() {
 	off := bit.Offset{Byte: 0, Bit: 8}
 	val := []bit.Bit{false, false, false, true} /* 0000_1000 in bit */
 
-	err := bit.SetBits(b, off, 4, val)
+	err := bit.SetBits(b, off, 4, val, binary.LittleEndian)
 	if err != nil {
 		fmt.Printf("error:%s\n", err)
 	}

@@ -18,6 +18,7 @@
 package bit
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 )
@@ -36,7 +37,7 @@ func (b Bit) String() string {
 }
 
 // BitsToBytes converts the unit. bit -> byte.
-func BitsToBytes(b []Bit) []byte {
+func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 	size := SizeOfBits(b)
 
 	ret := make([]byte, size)
@@ -50,7 +51,11 @@ func BitsToBytes(b []Bit) []byte {
 		} else {
 			v = 0
 		}
-		ret[idx] = ret[idx] | (v << bitc)
+		if o == binary.LittleEndian {
+			ret[idx] = ret[idx] | (v << bitc)
+		} else {
+			ret[idx] = ret[idx] | (v << (7 - bitc))
+		}
 
 		bitc += 1
 		if bitc == 8 {
@@ -155,24 +160,29 @@ func checkRange(b []byte, off Offset) error {
 // SetBit sets bit on b at off.
 // Bit is 0 if val == 0, 1 if val > 0.
 // SetBit returns error if error occurred.
-func SetBit(b []byte, off Offset, val Bit) error {
+func SetBit(b []byte, off Offset, val Bit, o binary.ByteOrder) error {
 	off.Normalize()
 	if err := checkRange(b, off); err != nil {
 		return fmt.Errorf("SetBit:%w", err)
 	}
 
+	s := off.Bit
+	if o == binary.BigEndian {
+		s = 7 - off.Bit
+	}
+
 	if val {
-		b[off.Byte] |= 1 << off.Bit
+		b[off.Byte] |= 1 << s
 	} else {
-		b[off.Byte] &= ^(1 << off.Bit)
+		b[off.Byte] &= ^(1 << s)
 	}
 	return nil
 }
 
 // GetBit returns 1 or 0.
 // GetBit reads b at Offset off, returns the bit.
-func GetBit(b []byte, off Offset) (Bit, error) {
-	v, err := GetBitAsByte(b, off)
+func GetBit(b []byte, off Offset, o binary.ByteOrder) (Bit, error) {
+	v, err := GetBitAsByte(b, off, o)
 	if err != nil {
 		return false, err
 	}
@@ -184,8 +194,8 @@ func GetBit(b []byte, off Offset) (Bit, error) {
 
 // GetBitAsByte returns byte (1 or 0).
 // GetBitAsByte reads b at Offset off, returns the bit.
-func GetBitAsByte(b []byte, off Offset) (byte, error) {
-	a, err := GetBitAsByteNotShift(b, off)
+func GetBitAsByte(b []byte, off Offset, o binary.ByteOrder) (byte, error) {
+	a, err := GetBitAsByteNotShift(b, off, o)
 	if a > 0x0 {
 		return 0x1, err
 	}
@@ -194,12 +204,16 @@ func GetBitAsByte(b []byte, off Offset) (byte, error) {
 
 // GetBitAsByteNotShift reads b at Offset off, returns the bit.
 // Return value is not bit shifted.
-func GetBitAsByteNotShift(b []byte, off Offset) (byte, error) {
+func GetBitAsByteNotShift(b []byte, off Offset, o binary.ByteOrder) (byte, error) {
 	off.Normalize()
+	s := off.Bit
+	if o == binary.BigEndian {
+		s = 7 - off.Bit
+	}
 	if err := checkRange(b, off); err != nil {
 		return 0x0, fmt.Errorf("GetBitAsByteNotShift:%w", err)
 	}
-	return b[off.Byte] & (1 << off.Bit), nil
+	return b[off.Byte] & (1 << s), nil
 }
 
 func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
@@ -216,8 +230,8 @@ func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
 // SetBits sets bits on bytes at off.
 // The length to set is bitSize.
 // SetBits returns error if error occurred.
-func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []Bit) error {
-	sb := BitsToBytes(setBits)
+func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []Bit, o binary.ByteOrder) error {
+	sb := BitsToBytes(setBits, o)
 
 	_, err := isInRange(bytes, off, bitSize)
 	if err != nil {
@@ -230,11 +244,11 @@ func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []Bit) error {
 	}
 
 	for i := uint64(0); i < bitSize; i++ {
-		bit, err := GetBit(sb, Offset{0, i})
+		bit, err := GetBit(sb, Offset{0, i}, o)
 		if err != nil {
 			return err
 		}
-		err = SetBit(bytes, Offset{off.Byte, off.Bit + i}, bit)
+		err = SetBit(bytes, Offset{off.Byte, off.Bit + i}, bit, o)
 		if err != nil {
 			return err
 		}
@@ -245,7 +259,7 @@ func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []Bit) error {
 
 // GetBits returns Bit slice.
 // GetBits reads bytes slice from Offset off. Read size is bitSize in bit.
-func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []Bit, err error) {
+func GetBits(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder) (ret []Bit, err error) {
 	ok, err := isInRange(bytes, off, bitSize)
 	if !ok || err != nil {
 		return []Bit{}, err
@@ -257,7 +271,7 @@ func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []Bit, err error) {
 		if err != nil {
 			return []Bit{}, err
 		}
-		bit, err := GetBit(bytes, bitOff)
+		bit, err := GetBit(bytes, bitOff, o)
 		if err != nil {
 			return []Bit{}, err
 		}
@@ -268,7 +282,7 @@ func GetBits(bytes []byte, off Offset, bitSize uint64) (ret []Bit, err error) {
 
 // GetBitsAsByte returns byte slice.
 // GetBitsAsByte reads bytes slice from Offset off. Read size is bitSize in bit.
-func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64) (ret []byte, err error) {
+func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder) (ret []byte, err error) {
 	ok, err := isInRange(bytes, off, bitSize)
 	if !ok || err != nil {
 		return []byte{}, err
@@ -281,7 +295,7 @@ func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64) (ret []byte, err er
 		if err != nil {
 			return []byte{}, err
 		}
-		bit, err := GetBit(bytes, bitOff)
+		bit, err := GetBit(bytes, bitOff, o)
 		if err != nil {
 			return []byte{}, err
 		}

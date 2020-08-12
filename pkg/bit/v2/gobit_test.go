@@ -18,6 +18,7 @@ package bit
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 )
 
@@ -34,7 +35,7 @@ func TestBitsToBytes(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret := BitsToBytes(v.input)
+		ret := BitsToBytes(v.input, binary.LittleEndian)
 		if bytes.Compare(ret, v.expect) != 0 {
 			t.Errorf("%s: given=%v expect=%v", v.name, ret, v.expect)
 		}
@@ -104,7 +105,7 @@ func TestSetBit(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		err := SetBit(v.bytes, v.off, v.bit)
+		err := SetBit(v.bytes, v.off, v.bit, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
@@ -118,7 +119,50 @@ func TestSetBit(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		err := SetBit(v.bytes, v.off, v.bit)
+		err := SetBit(v.bytes, v.off, v.bit, binary.LittleEndian)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+
+}
+
+func TestSetBitBigEndian(t *testing.T) {
+	type testcase struct {
+		name     string
+		bytes    []byte
+		off      Offset
+		bit      Bit
+		expected []byte
+	}
+
+	cases := []testcase{
+		{"0000_0000[2] on", []byte{0x00}, Offset{0, 2}, true, []byte{0x20}},
+		{"0000_0000[2] off", []byte{0x00}, Offset{0, 2}, false, []byte{0x00}},
+		{"1111_1111[2] on", []byte{0xff}, Offset{0, 2}, true, []byte{0xff}},
+		{"1111_1111[2] off", []byte{0xff}, Offset{0, 2}, false, []byte{0xdf}},
+		{"0000_0000_0000_0000[9] on", []byte{0x00, 0x00}, Offset{0, 9}, true, []byte{0x00, 0x40}},
+		{"0000_0000_0000_0000[9] off", []byte{0x00, 0x00}, Offset{0, 9}, false, []byte{0x00, 0x00}},
+		{"1111_1111_1111_1111[9] on", []byte{0xff, 0xff}, Offset{0, 9}, true, []byte{0xff, 0xff}},
+		{"1111_1111_1111_1111[9] off", []byte{0xff, 0xff}, Offset{0, 9}, false, []byte{0xff, 0xbf}},
+	}
+
+	for _, v := range cases {
+		err := SetBit(v.bytes, v.off, v.bit, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if bytes.Compare(v.bytes, v.expected) != 0 {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, v.bytes, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x0}, Offset{128, 0}, false, []byte{0x0}},
+	}
+
+	for _, v := range errcases {
+		err := SetBit(v.bytes, v.off, v.bit, binary.BigEndian)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -142,7 +186,7 @@ func TestGetBit(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		b, err := GetBit(v.bytes, v.off)
+		b, err := GetBit(v.bytes, v.off, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
@@ -156,7 +200,44 @@ func TestGetBit(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		_, err := GetBit(v.bytes, v.off)
+		_, err := GetBit(v.bytes, v.off, binary.LittleEndian)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}
+
+func TestGetBitBigEndian(t *testing.T) {
+	type testcase struct {
+		name     string
+		bytes    []byte
+		off      Offset
+		expected Bit
+	}
+
+	cases := []testcase{
+		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, false},
+		{"0000_1000[4]", []byte{0x08}, Offset{0, 4}, true},
+		{"0000_0000_0000_0001[f]", []byte{0x00, 0x01}, Offset{0, 0xf}, true},
+		{"0000_0000_0000_0001[e]", []byte{0x00, 0x01}, Offset{0, 0xe}, false},
+	}
+
+	for _, v := range cases {
+		b, err := GetBit(v.bytes, v.off, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if b != v.expected {
+			t.Errorf("%s: mismatch. given %t. expected %t", v.name, b, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x0}, Offset{128, 0}, false},
+	}
+
+	for _, v := range errcases {
+		_, err := GetBit(v.bytes, v.off, binary.BigEndian)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -179,7 +260,7 @@ func TestGetBitAsByteNotShift(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		b, err := GetBitAsByteNotShift(v.bytes, v.off)
+		b, err := GetBitAsByteNotShift(v.bytes, v.off, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
@@ -193,7 +274,44 @@ func TestGetBitAsByteNotShift(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		_, err := GetBitAsByteNotShift(v.bytes, v.off)
+		_, err := GetBitAsByteNotShift(v.bytes, v.off, binary.LittleEndian)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}
+
+func TestGetBitAsByteNotShiftBigEndian(t *testing.T) {
+	type testcase struct {
+		name     string
+		bytes    []byte
+		off      Offset
+		expected byte
+	}
+
+	cases := []testcase{
+		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, 0x0},
+		{"0000_1000[4]", []byte{0x08}, Offset{0, 4}, 0x08},
+		{"0000_0000_0000_0001[f]", []byte{0x00, 0x01}, Offset{0, 0xf}, 0x1},
+		{"0000_0000_0000_0001[e]", []byte{0x00, 0x01}, Offset{0, 0xe}, 0x0},
+	}
+
+	for _, v := range cases {
+		b, err := GetBitAsByteNotShift(v.bytes, v.off, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if b != v.expected {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, b, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x0}, Offset{128, 0}, 0},
+	}
+
+	for _, v := range errcases {
+		_, err := GetBitAsByteNotShift(v.bytes, v.off, binary.BigEndian)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -323,7 +441,7 @@ func TestGetBitsAsByte(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret, err := GetBitsAsByte(v.testdata, v.Offset, v.bitSize)
+		ret, err := GetBitsAsByte(v.testdata, v.Offset, v.bitSize, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
@@ -337,7 +455,47 @@ func TestGetBitsAsByte(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		_, err := GetBitsAsByte(v.testdata, v.Offset, v.bitSize)
+		_, err := GetBitsAsByte(v.testdata, v.Offset, v.bitSize, binary.LittleEndian)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}
+
+func TestGetBitsAsByteBigEndian(t *testing.T) {
+	type testcase struct {
+		name string
+		Offset
+		bitSize  uint64
+		testdata []byte
+		expected []byte
+	}
+
+	cases := []testcase{
+		{"from head", Offset{0, 0}, 4, []byte{0xf0}, []byte{0x0f}},
+		{"0011_1000", Offset{0, 2}, 3, []byte{0x38}, []byte{0x07}},
+		{"0111_1000_0000_0000", Offset{0, 1}, 4, []byte{0x78, 0x00}, []byte{0x0f}},
+		{"0000_0011_1100_0000", Offset{0, 6}, 4, []byte{0x03, 0xc0}, []byte{0x0f}},
+		{"0111_1111_1100_0000", Offset{0, 1}, 9, []byte{0x7f, 0xc0}, []byte{0xff, 0x01}},
+		{"0111_1111_1111_1111_1100_0000", Offset{0, 1}, 17, []byte{0x7f, 0xff, 0xc0}, []byte{0xff, 0xff, 0x01}},
+	}
+
+	for _, v := range cases {
+		ret, err := GetBitsAsByte(v.testdata, v.Offset, v.bitSize, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if bytes.Compare(ret, v.expected) != 0 {
+			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, ret, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", Offset{0, 0}, 128, []byte{0xff}, []byte{}},
+	}
+
+	for _, v := range errcases {
+		_, err := GetBitsAsByte(v.testdata, v.Offset, v.bitSize, binary.BigEndian)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -363,11 +521,11 @@ func TestGetBits(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret, err := GetBits(v.testdata, v.Offset, v.bitSize)
+		ret, err := GetBits(v.testdata, v.Offset, v.bitSize, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
-		if bytes.Compare(BitsToBytes(ret), BitsToBytes(v.expected)) != 0 {
+		if bytes.Compare(BitsToBytes(ret, binary.LittleEndian), BitsToBytes(v.expected, binary.LittleEndian)) != 0 {
 			t.Errorf("%s: mismatch. given %t. expected %t", v.name, ret, v.expected)
 		}
 	}
@@ -377,7 +535,48 @@ func TestGetBits(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		_, err := GetBits(v.testdata, v.Offset, v.bitSize)
+		_, err := GetBits(v.testdata, v.Offset, v.bitSize, binary.LittleEndian)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}
+
+func TestGetBitsBigEndian(t *testing.T) {
+	type testcase struct {
+		name string
+		Offset
+		bitSize  uint64
+		testdata []byte
+		expected []Bit
+	}
+
+	cases := []testcase{
+		{"from head", Offset{0, 0}, 4, []byte{0xf0}, NewBits(4, true)},
+		{"0011_1000", Offset{0, 2}, 3, []byte{0x38}, NewBits(3, true)},
+		{"0111_1000_0000_0000", Offset{0, 1}, 4, []byte{0x78, 0x00}, NewBits(4, true)},
+		{"0000_0000_0001_1110", Offset{0, 11}, 4, []byte{0x00, 0x1e}, NewBits(4, true)},
+		{"0000_0011_1100_0000", Offset{0, 6}, 4, []byte{0x03, 0xc0}, NewBits(4, true)},
+		{"0111_1111_1100_0000", Offset{0, 1}, 9, []byte{0x7f, 0xc0}, NewBits(9, true)},
+		{"0111_1111_1111_1111_1100_0000", Offset{0, 1}, 17, []byte{0x7f, 0xff, 0xc0}, NewBits(17, true)},
+	}
+
+	for _, v := range cases {
+		ret, err := GetBits(v.testdata, v.Offset, v.bitSize, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if bytes.Compare(BitsToBytes(ret, binary.BigEndian), BitsToBytes(v.expected, binary.BigEndian)) != 0 {
+			t.Errorf("%s: mismatch. given %t. expected %t", v.name, ret, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", Offset{0, 0}, 128, []byte{0xff}, []Bit{}},
+	}
+
+	for _, v := range errcases {
+		_, err := GetBits(v.testdata, v.Offset, v.bitSize, binary.BigEndian)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -409,12 +608,12 @@ func TestSetBits(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits)
+		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
 		if bytes.Compare(v.bytes, v.expected) != 0 {
-			t.Errorf("%s: mismatch. given 0x%x. expected 0x%x", v.name, v.bytes, v.expected)
+			t.Errorf("\n%s: mismatch.\n given 0x%x. expected 0x%x", v.name, v.bytes, v.expected)
 		}
 	}
 
@@ -424,7 +623,54 @@ func TestSetBits(t *testing.T) {
 	}
 
 	for _, v := range errcases {
-		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits)
+		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits, binary.LittleEndian)
+		if err == nil {
+			t.Errorf("%s: It should be error", v.name)
+		}
+	}
+}
+
+func TestSetBitsBigEndian(t *testing.T) {
+	type testcase struct {
+		name  string
+		bytes []byte
+		Offset
+		bitSize  uint64
+		bits     []Bit
+		expected []byte
+	}
+
+	cases := []testcase{
+		{"from head", []byte{0x00}, Offset{0, 0}, 4, NewBits(4, true), []byte{0xf0}},
+		{"0000_0000 -> 0011_1000", []byte{0x00}, Offset{0, 2}, 3, NewBits(3, true), []byte{0x38}},
+		{"0011_1000 -> 0000_0000", []byte{0x38}, Offset{0, 2}, 3, NewBits(3, false), []byte{0x00}},
+		{"0111_1000_0000_0000 -> 0000_0000_0000_0000", []byte{0x78, 0x00}, Offset{0, 1}, 4, NewBits(4, false), []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0111_1000_0000_0000", []byte{0x00, 0x00}, Offset{0, 1}, 4, NewBits(4, true), []byte{0x78, 0x00}},
+		{"0000_0011_1100_0000 -> 0000_0000_0000_0000", []byte{0x03, 0xc0}, Offset{0, 6}, 4, NewBits(4, false), []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0000_0011_1100_0000", []byte{0x00, 0x00}, Offset{0, 6}, 4, NewBits(4, true), []byte{0x03, 0xc0}},
+		{"0111_1111_1100_0000 -> 0000_0000_0000_0000", []byte{0x7f, 0xc0}, Offset{0, 1}, 9, NewBits(9, false), []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0111_1111_1100_0000", []byte{0x00, 0x00}, Offset{0, 1}, 9, NewBits(9, true), []byte{0x7f, 0xc0}},
+		{"0111_1111_1111_1111_1100_0000 -> 0", []byte{0x7f, 0xff, 0xc0}, Offset{0, 1}, 17, NewBits(17, false), []byte{0x00, 0x00, 0x00}},
+		{"0 -> 0111_1111_1111_1111_1100_0000", []byte{0x00, 0x00, 0x00}, Offset{0, 1}, 17, NewBits(17, true), []byte{0x7f, 0xff, 0xc0}},
+	}
+
+	for _, v := range cases {
+		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: Error %s", v.name, err)
+		}
+		if bytes.Compare(v.bytes, v.expected) != 0 {
+			t.Errorf("\n%s: mismatch.\n given 0x%x. expected 0x%x", v.name, v.bytes, v.expected)
+		}
+	}
+
+	errcases := []testcase{
+		{"out of range", []byte{0x00}, Offset{0, 0}, 128, NewBits(4, false), []byte{}},
+		{"out of range2", []byte{0x00, 0x00}, Offset{0, 0}, 9, NewBits(4, false), []byte{}},
+	}
+
+	for _, v := range errcases {
+		err := SetBits(v.bytes, v.Offset, v.bitSize, v.bits, binary.BigEndian)
 		if err == nil {
 			t.Errorf("%s: It should be error", v.name)
 		}
@@ -445,7 +691,7 @@ func TestGetBitsAsByteRetSize(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		ret, err := GetBitsAsByte([]byte{0xff, 0xff, 0xff, 0xff}, v.off, v.bitsize)
+		ret, err := GetBitsAsByte([]byte{0xff, 0xff, 0xff, 0xff}, v.off, v.bitsize, binary.LittleEndian)
 		if err != nil {
 			t.Errorf("%s: Error %s", v.name, err)
 		}
@@ -459,9 +705,9 @@ func BenchmarkGetBitsAsByte(b *testing.B) {
 	off := Offset{0, 6}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := GetBitsAsByte([]byte{0xc0, 0xff, 0x7f}, off, 17)
+		_, err := GetBitsAsByte([]byte{0xc0, 0xff, 0x7f}, off, 17, binary.LittleEndian)
 		if err != nil {
-			b.Fatalf("SetBits Error!")
+			b.Fatalf("GetBitsAsByte Error!")
 		}
 	}
 }
@@ -472,7 +718,7 @@ func BenchmarkSetBits(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bytes := []byte{0xc0, 0xff, 0x7f}
-		if err := SetBits(bytes, off, 17, data); err != nil {
+		if err := SetBits(bytes, off, 17, data, binary.LittleEndian); err != nil {
 			b.Fatalf("SetBits Error!")
 		}
 	}
