@@ -64,6 +64,15 @@ func main() {
 }
 ```
 
+## Struct Tag
+
+The package supports struct tags.
+
+|Tag|Description|
+|---|-----------|
+|`` `bit:"skip"` ``|Ignore the field. Offset is updated by the size of the field. It is useful for reserved field.|
+|`` `bit:"-"` ``|Ignore the field. Offset is not updated.|
+
 ## Tool
 * [readbit](cmd/readbit/README.md)
 
