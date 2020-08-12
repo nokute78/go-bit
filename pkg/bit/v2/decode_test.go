@@ -224,25 +224,25 @@ func TestReadBigEndian(t *testing.T) {
 		DstPort    uint16
 		SeqNo      uint32
 		AckNo      uint32
-		HeaderLen  [4]bit.Bit
-		Reserved   [3]bit.Bit
-		NS         bit.Bit
-		CWR        bit.Bit
-		ECE        bit.Bit
-		URG        bit.Bit
-		ACK        bit.Bit
-		PSH        bit.Bit
-		RST        bit.Bit
-		SYN        bit.Bit
-		FIN        bit.Bit
+		HeaderLen  [4]bit.Bit /* 12Byte 0-3bit */
+		Reserved   [3]bit.Bit /* 12Byte 4-6bit */
+		NS         bit.Bit    /* 12Byte 7bit */
+		CWR        bit.Bit    /* 13Byte 0bit */
+		ECE        bit.Bit    /* 13Byte 1bit */
+		URG        bit.Bit    /* 13Byte 2bit */
+		ACK        bit.Bit    /* 13Byte 3bit */
+		PSH        bit.Bit    /* 13Byte 4bit */
+		RST        bit.Bit    /* 13Byte 5bit */
+		SYN        bit.Bit    /* 13Byte 6bit */
+		FIN        bit.Bit    /* 13Byte 7bit */
 		WinSize    uint16
 		CheckSum   uint16
 		EmePointer uint16
 	}
 
 	s := TcpHeader{}
-	br := bytes.NewReader([]byte{0xd8, 0x65, 0x01, 0xbb, 0x4b, 0xe0, 0x76, 0xcd, 0x48, 0xc8, 0x70, 0x8f, 0x50, 0x10, 0x10,
-		0x18, 0x0e, 0xc1, 0x00, 0x00})
+	br := bytes.NewReader([]byte{0xd8, 0x65, 0x01, 0xbb, 0x4b, 0xe0, 0x76, 0xcd, 0x48, 0xc8, 0x70, 0x8f,
+		0x50, 0x10, 0x10, 0x18, 0x0e, 0xc1, 0x00, 0x00})
 	if err := bit.Read(br, binary.BigEndian, &s); err != nil {
 		t.Fatalf("error:%s", err)
 	}
@@ -257,6 +257,9 @@ func TestReadBigEndian(t *testing.T) {
 	}
 	if s.HeaderLen[0] || !s.HeaderLen[1] || s.HeaderLen[2] || !s.HeaderLen[3] {
 		t.Errorf("HeaderLength is not 5. %v\n", s.HeaderLen)
+	}
+	if s.CheckSum != 0x0ec1 {
+		t.Errorf("CheckSum:given=0x%x expect=0x%x", s.CheckSum, 0x1018)
 	}
 }
 

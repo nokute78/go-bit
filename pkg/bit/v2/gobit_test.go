@@ -137,14 +137,14 @@ func TestSetBitBigEndian(t *testing.T) {
 	}
 
 	cases := []testcase{
-		{"0000_0000[2] on", []byte{0x00}, Offset{0, 2}, true, []byte{0x20}},
+		{"0000_0000[2] on", []byte{0x00}, Offset{0, 2}, true, []byte{0x04}},
 		{"0000_0000[2] off", []byte{0x00}, Offset{0, 2}, false, []byte{0x00}},
 		{"1111_1111[2] on", []byte{0xff}, Offset{0, 2}, true, []byte{0xff}},
-		{"1111_1111[2] off", []byte{0xff}, Offset{0, 2}, false, []byte{0xdf}},
-		{"0000_0000_0000_0000[9] on", []byte{0x00, 0x00}, Offset{0, 9}, true, []byte{0x00, 0x40}},
+		{"1111_1111[2] off", []byte{0xff}, Offset{0, 2}, false, []byte{0xfb}},
+		{"0000_0000_0000_0000[9] on", []byte{0x00, 0x00}, Offset{0, 9}, true, []byte{0x02, 0x00}},
 		{"0000_0000_0000_0000[9] off", []byte{0x00, 0x00}, Offset{0, 9}, false, []byte{0x00, 0x00}},
 		{"1111_1111_1111_1111[9] on", []byte{0xff, 0xff}, Offset{0, 9}, true, []byte{0xff, 0xff}},
-		{"1111_1111_1111_1111[9] off", []byte{0xff, 0xff}, Offset{0, 9}, false, []byte{0xff, 0xbf}},
+		{"1111_1111_1111_1111[9] off", []byte{0xff, 0xff}, Offset{0, 9}, false, []byte{0xfd, 0xff}},
 	}
 
 	for _, v := range cases {
@@ -216,10 +216,10 @@ func TestGetBitBigEndian(t *testing.T) {
 	}
 
 	cases := []testcase{
-		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, false},
-		{"0000_1000[4]", []byte{0x08}, Offset{0, 4}, true},
-		{"0000_0000_0000_0001[f]", []byte{0x00, 0x01}, Offset{0, 0xf}, true},
-		{"0000_0000_0000_0001[e]", []byte{0x00, 0x01}, Offset{0, 0xe}, false},
+		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, true},
+		{"0000_1000[4]", []byte{0x08}, Offset{0, 4}, false},
+		{"0000_0000_0000_0001[0]", []byte{0x00, 0x01}, Offset{0, 0}, true},
+		{"0000_0000_0000_0001[1]", []byte{0x00, 0x01}, Offset{0, 1}, false},
 	}
 
 	for _, v := range cases {
@@ -290,10 +290,10 @@ func TestGetBitAsByteNotShiftBigEndian(t *testing.T) {
 	}
 
 	cases := []testcase{
-		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, 0x0},
-		{"0000_1000[4]", []byte{0x08}, Offset{0, 4}, 0x08},
-		{"0000_0000_0000_0001[f]", []byte{0x00, 0x01}, Offset{0, 0xf}, 0x1},
-		{"0000_0000_0000_0001[e]", []byte{0x00, 0x01}, Offset{0, 0xe}, 0x0},
+		{"0000_1000[3]", []byte{0x08}, Offset{0, 3}, 0x8},
+		{"0000_1000[4]", []byte{0x08}, Offset{0, 4}, 0x0},
+		{"0000_0000_0000_0001[0]", []byte{0x00, 0x01}, Offset{0, 0}, 0x1},
+		{"0000_0000_0000_0001[1]", []byte{0x00, 0x01}, Offset{0, 1}, 0x0},
 	}
 
 	for _, v := range cases {
@@ -472,12 +472,12 @@ func TestGetBitsAsByteBigEndian(t *testing.T) {
 	}
 
 	cases := []testcase{
-		{"from head", Offset{0, 0}, 4, []byte{0xf0}, []byte{0x0f}},
-		{"0011_1000", Offset{0, 2}, 3, []byte{0x38}, []byte{0x07}},
-		{"0111_1000_0000_0000", Offset{0, 1}, 4, []byte{0x78, 0x00}, []byte{0x0f}},
+		{"from head", Offset{0, 0}, 4, []byte{0x0f}, []byte{0x0f}},
+		{"0011_1000", Offset{0, 2}, 3, []byte{0x38}, []byte{0x06}},
+		{"0111_1000_0000_0000", Offset{0, 11}, 4, []byte{0x78, 0x00}, []byte{0x0f}},
 		{"0000_0011_1100_0000", Offset{0, 6}, 4, []byte{0x03, 0xc0}, []byte{0x0f}},
-		{"0111_1111_1100_0000", Offset{0, 1}, 9, []byte{0x7f, 0xc0}, []byte{0xff, 0x01}},
-		{"0111_1111_1111_1111_1100_0000", Offset{0, 1}, 17, []byte{0x7f, 0xff, 0xc0}, []byte{0xff, 0xff, 0x01}},
+		{"0111_1111_1100_0000", Offset{0, 6}, 9, []byte{0x7f, 0xc0}, []byte{0x01, 0xff}},
+		{"0111_1111_1111_1111_1100_0000", Offset{0, 6}, 17, []byte{0x7f, 0xff, 0xc0}, []byte{0x01, 0xff, 0xff}},
 	}
 
 	for _, v := range cases {
@@ -552,13 +552,13 @@ func TestGetBitsBigEndian(t *testing.T) {
 	}
 
 	cases := []testcase{
-		{"from head", Offset{0, 0}, 4, []byte{0xf0}, NewBits(4, true)},
-		{"0011_1000", Offset{0, 2}, 3, []byte{0x38}, NewBits(3, true)},
-		{"0111_1000_0000_0000", Offset{0, 1}, 4, []byte{0x78, 0x00}, NewBits(4, true)},
-		{"0000_0000_0001_1110", Offset{0, 11}, 4, []byte{0x00, 0x1e}, NewBits(4, true)},
+		{"from head", Offset{0, 4}, 4, []byte{0xf0}, NewBits(4, true)},
+		{"0011_1000", Offset{0, 3}, 3, []byte{0x38}, NewBits(3, true)},
+		{"0111_1000_0000_0000", Offset{0, 11}, 4, []byte{0x78, 0x00}, NewBits(4, true)},
+		{"0000_0000_0001_1110", Offset{0, 1}, 4, []byte{0x00, 0x1e}, NewBits(4, true)},
 		{"0000_0011_1100_0000", Offset{0, 6}, 4, []byte{0x03, 0xc0}, NewBits(4, true)},
-		{"0111_1111_1100_0000", Offset{0, 1}, 9, []byte{0x7f, 0xc0}, NewBits(9, true)},
-		{"0111_1111_1111_1111_1100_0000", Offset{0, 1}, 17, []byte{0x7f, 0xff, 0xc0}, NewBits(17, true)},
+		{"0111_1111_1100_0000", Offset{0, 6}, 9, []byte{0x7f, 0xc0}, NewBits(9, true)},
+		{"0111_1111_1111_1111_1100_0000", Offset{0, 6}, 17, []byte{0x7f, 0xff, 0xc0}, NewBits(17, true)},
 	}
 
 	for _, v := range cases {
@@ -641,17 +641,17 @@ func TestSetBitsBigEndian(t *testing.T) {
 	}
 
 	cases := []testcase{
-		{"from head", []byte{0x00}, Offset{0, 0}, 4, NewBits(4, true), []byte{0xf0}},
-		{"0000_0000 -> 0011_1000", []byte{0x00}, Offset{0, 2}, 3, NewBits(3, true), []byte{0x38}},
-		{"0011_1000 -> 0000_0000", []byte{0x38}, Offset{0, 2}, 3, NewBits(3, false), []byte{0x00}},
-		{"0111_1000_0000_0000 -> 0000_0000_0000_0000", []byte{0x78, 0x00}, Offset{0, 1}, 4, NewBits(4, false), []byte{0x00, 0x00}},
-		{"0000_0000_0000_0000 -> 0111_1000_0000_0000", []byte{0x00, 0x00}, Offset{0, 1}, 4, NewBits(4, true), []byte{0x78, 0x00}},
+		{"from head", []byte{0x00}, Offset{0, 4}, 4, NewBits(4, true), []byte{0xf0}},
+		{"0000_0000 -> 0011_1000", []byte{0x00}, Offset{0, 3}, 3, NewBits(3, true), []byte{0x38}},
+		{"0011_1000 -> 0000_0000", []byte{0x38}, Offset{0, 3}, 3, NewBits(3, false), []byte{0x00}},
+		{"0111_1000_0000_0000 -> 0000_0000_0000_0000", []byte{0x78, 0x00}, Offset{0, 11}, 4, NewBits(4, false), []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0111_1000_0000_0000", []byte{0x00, 0x00}, Offset{0, 11}, 4, NewBits(4, true), []byte{0x78, 0x00}},
 		{"0000_0011_1100_0000 -> 0000_0000_0000_0000", []byte{0x03, 0xc0}, Offset{0, 6}, 4, NewBits(4, false), []byte{0x00, 0x00}},
 		{"0000_0000_0000_0000 -> 0000_0011_1100_0000", []byte{0x00, 0x00}, Offset{0, 6}, 4, NewBits(4, true), []byte{0x03, 0xc0}},
-		{"0111_1111_1100_0000 -> 0000_0000_0000_0000", []byte{0x7f, 0xc0}, Offset{0, 1}, 9, NewBits(9, false), []byte{0x00, 0x00}},
-		{"0000_0000_0000_0000 -> 0111_1111_1100_0000", []byte{0x00, 0x00}, Offset{0, 1}, 9, NewBits(9, true), []byte{0x7f, 0xc0}},
-		{"0111_1111_1111_1111_1100_0000 -> 0", []byte{0x7f, 0xff, 0xc0}, Offset{0, 1}, 17, NewBits(17, false), []byte{0x00, 0x00, 0x00}},
-		{"0 -> 0111_1111_1111_1111_1100_0000", []byte{0x00, 0x00, 0x00}, Offset{0, 1}, 17, NewBits(17, true), []byte{0x7f, 0xff, 0xc0}},
+		{"0111_1111_1100_0000 -> 0000_0000_0000_0000", []byte{0x7f, 0xc0}, Offset{0, 6}, 9, NewBits(9, false), []byte{0x00, 0x00}},
+		{"0000_0000_0000_0000 -> 0111_1111_1100_0000", []byte{0x00, 0x00}, Offset{0, 6}, 9, NewBits(9, true), []byte{0x7f, 0xc0}},
+		{"0111_1111_1111_1111_1100_0000 -> 0", []byte{0x7f, 0xff, 0xc0}, Offset{0, 6}, 17, NewBits(17, false), []byte{0x00, 0x00, 0x00}},
+		{"0 -> 0111_1111_1111_1111_1100_0000", []byte{0x00, 0x00, 0x00}, Offset{0, 6}, 17, NewBits(17, true), []byte{0x7f, 0xff, 0xc0}},
 	}
 
 	for _, v := range cases {

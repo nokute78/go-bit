@@ -39,28 +39,29 @@ func (b Bit) String() string {
 // BitsToBytes converts the unit. bit -> byte.
 func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 	size := SizeOfBits(b)
-
 	ret := make([]byte, size)
 
-	idx := 0
-	bitc := 0
 	var v byte
+	bitc := 0
+	idx := 0
+	if o == binary.BigEndian {
+		idx = len(ret) - 1
+	}
 	for i := 0; i < len(b); i++ {
 		if b[i] {
 			v = 1
 		} else {
 			v = 0
 		}
-		if o == binary.LittleEndian {
-			ret[idx] = ret[idx] | (v << bitc)
-		} else {
-			ret[idx] = ret[idx] | (v << (7 - bitc))
-		}
-
+		ret[idx] = ret[idx] | (v << bitc)
 		bitc += 1
 		if bitc == 8 {
 			bitc = 0
-			idx += 1
+			if o == binary.BigEndian {
+				idx -= 1
+			} else {
+				idx += 1
+			}
 		}
 	}
 
@@ -166,15 +167,16 @@ func SetBit(b []byte, off Offset, val Bit, o binary.ByteOrder) error {
 		return fmt.Errorf("SetBit:%w", err)
 	}
 
-	s := off.Bit
+	addr := int(off.Byte)
 	if o == binary.BigEndian {
-		s = 7 - off.Bit
+		addr = len(b) - 1 - addr
 	}
-
 	if val {
-		b[off.Byte] |= 1 << s
+		/* set bit */
+		b[addr] |= 1 << off.Bit
 	} else {
-		b[off.Byte] &= ^(1 << s)
+		/* clear bit */
+		b[addr] &= ^(1 << off.Bit)
 	}
 	return nil
 }
@@ -206,14 +208,14 @@ func GetBitAsByte(b []byte, off Offset, o binary.ByteOrder) (byte, error) {
 // Return value is not bit shifted.
 func GetBitAsByteNotShift(b []byte, off Offset, o binary.ByteOrder) (byte, error) {
 	off.Normalize()
-	s := off.Bit
+	addr := int(off.Byte)
 	if o == binary.BigEndian {
-		s = 7 - off.Bit
+		addr = len(b) - 1 - addr
 	}
 	if err := checkRange(b, off); err != nil {
 		return 0x0, fmt.Errorf("GetBitAsByteNotShift:%w", err)
 	}
-	return b[off.Byte] & (1 << s), nil
+	return b[addr] & (1 << off.Bit), nil
 }
 
 func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
@@ -287,8 +289,7 @@ func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder)
 	if !ok || err != nil {
 		return []byte{}, err
 	}
-
-	ret = make([]byte, sizeOfBits(int(bitSize)))
+	bits := make([]Bit, bitSize)
 
 	for i := uint64(0); i < bitSize; i++ {
 		bitOff, err := off.AddOffset(Offset{0, i})
@@ -300,10 +301,11 @@ func GetBitsAsByte(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder)
 			return []byte{}, err
 		}
 		if bit {
-			ret[i/8] = ret[i/8] | (1 << (i % 8))
+			bits[i] = true
 		}
 	}
-	return ret, nil
+
+	return BitsToBytes(bits, o), nil
 }
 
 // NewBits generates slice of Bit.

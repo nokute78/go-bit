@@ -139,16 +139,18 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 		off = Offset{8, 0}
 
 	case Bit:
-		ret, err := GetBit(b, *o, order)
+
+		ret, err := GetBits(b, *o, 1, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
-		if ret {
+		if ret[0] {
+
 			val = reflect.ValueOf(Bit(true))
 		} else {
+
 			val = reflect.ValueOf(Bit(false))
 		}
-
 		off = Offset{0, 1}
 	default:
 		switch v.Kind() {
