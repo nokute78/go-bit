@@ -134,7 +134,7 @@ func TestReadStruct(t *testing.T) {
 			t.Errorf("bit(%d) is not 1", i)
 		}
 	}
-	b := bit.BitsToBytes(s.Id[:])
+	b := bit.BitsToBytes(s.Id[:], binary.LittleEndian)
 	if len(b) != 1 {
 		t.Errorf("Id size error")
 	}
@@ -142,7 +142,7 @@ func TestReadStruct(t *testing.T) {
 		t.Errorf("Id: given=%x expect=%x", b[0], 0x1)
 	}
 
-	b = bit.BitsToBytes(s.Rev[:])
+	b = bit.BitsToBytes(s.Rev[:], binary.LittleEndian)
 	if len(b) != 1 {
 		t.Errorf("Rev size error")
 	}

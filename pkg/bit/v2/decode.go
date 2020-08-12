@@ -19,34 +19,76 @@ package bit
 import (
 	"encoding/binary"
 	"fmt"
-	"io"
-	//	"reflect"
 	"github.com/goccy/go-reflect"
+	"io"
+	"strings"
 )
+
+const (
+	tagKeyName = "bit"
+)
+
+// tagConfig represents StructTag.
+//   "-" : ignore the field
+//   "16", "32", "64" : read size to anotate
+type tagConfig struct {
+	ignore bool
+	size   int // must be 16, 32, 64
+}
+
+func parseStructTag(t reflect.StructTag) *tagConfig {
+	s, ok := t.Lookup(tagKeyName)
+	if !ok {
+		return nil
+	}
+	ret := &tagConfig{}
+
+	strs := strings.Split(s, ",")
+	for _, v := range strs {
+		switch v {
+		case "-":
+			ret.ignore = true
+			return ret
+		}
+	}
+	return ret
+}
 
 // Size returns size of v in bits.
 func Size(v interface{}) int {
 	val := reflect.ValueOf(v)
 	var i int = 0
-	sizeOfValueInBits(&i, val)
+	sizeOfValueInBits(&i, val, false)
 	return i
 }
 
 // This function will be panic if v doesn't support Bits function.
-func sizeOfValueInBits(c *int, v reflect.Value) {
+// if structtag is true, the function respects struct tag.
+func sizeOfValueInBits(c *int, v reflect.Value, structtag bool) {
 	switch v.Kind() {
 	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
-			f := v.Field(i)
-			sizeOfValueInBits(c, f)
+		if structtag {
+			for i := 0; i < v.Type().NumField(); i++ {
+				f := v.Type().Field(i)
+				cnf := parseStructTag(f.Tag)
+				if cnf != nil {
+					if cnf.ignore {
+						continue
+					}
+				}
+				sizeOfValueInBits(c, v.Field(i), structtag)
+			}
+		} else {
+			for i := 0; i < v.NumField(); i++ {
+				sizeOfValueInBits(c, v.Field(i), structtag)
+			}
 		}
 	case reflect.Array, reflect.Slice:
 		if v.Len() == 0 {
 			return
 		}
-		i := v.Index(0)
 		var elemSize int
-		sizeOfValueInBits(&elemSize, i)
+		sizeOfValueInBits(&elemSize, v.Index(0), structtag)
 		*c += (elemSize * v.Len())
 	case reflect.Bool:
 		*c += 1
@@ -65,28 +107,37 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 
 	switch d.(type) {
 	case uint8:
-		ret, err := GetBitsAsByte(b, *o, 8)
+		ret, err := GetBitsAsByte(b, *o, 8, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
 		val = reflect.ValueOf(ret[0])
 		off = Offset{1, 0}
 	case uint16:
-		ret, err := GetBitsAsByte(b, *o, 16)
+		ret, err := GetBitsAsByte(b, *o, 16, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
 		val = reflect.ValueOf(order.Uint16(ret))
 		off = Offset{2, 0}
+	case *uint16:
+		ret, err := GetBitsAsByte(b, *o, 16, binary.LittleEndian)
+		if err != nil {
+			return err
+		}
+		val = reflect.ValueOf(order.Uint16(ret))
+		off = Offset{2, 0}
+		v = reflect.Indirect(v)
+
 	case uint32:
-		ret, err := GetBitsAsByte(b, *o, 32)
+		ret, err := GetBitsAsByte(b, *o, 32, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
 		val = reflect.ValueOf(order.Uint32(ret))
 		off = Offset{4, 0}
 	case uint64:
-		ret, err := GetBitsAsByte(b, *o, 64)
+		ret, err := GetBitsAsByte(b, *o, 64, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
@@ -94,11 +145,11 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 		off = Offset{8, 0}
 
 	case Bit:
-		ret, err := GetBitsAsByte(b, *o, 1)
+		ret, err := GetBit(b, *o, order)
 		if err != nil {
 			return err
 		}
-		if ret[0] > 0 {
+		if ret {
 			val = reflect.ValueOf(Bit(true))
 		} else {
 			val = reflect.ValueOf(Bit(false))
@@ -116,7 +167,15 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 			}
 			return nil
 		case reflect.Struct:
-			for i := 0; i < v.NumField(); i++ {
+			for i := 0; i < v.Type().NumField(); i++ {
+				f := v.Type().Field(i)
+				cnf := parseStructTag(f.Tag)
+				if cnf != nil {
+					fmt.Printf("cnf found!!: type=%s\n", v.Type())
+					if cnf.ignore {
+						continue
+					}
+				}
 				err := fillData(b, order, v.Field(i), o)
 				if err != nil {
 					return err
@@ -149,7 +208,7 @@ func Read(r io.Reader, order binary.ByteOrder, data interface{}) error {
 	switch v.Kind() {
 	case reflect.Ptr:
 		var c int = 0
-		sizeOfValueInBits(&c, reflect.Indirect(v))
+		sizeOfValueInBits(&c, reflect.Indirect(v), true)
 		byteSize := sizeOfBits(c)
 		barr := make([]byte, byteSize)
 		n, err := r.Read(barr)
