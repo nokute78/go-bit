@@ -19,7 +19,6 @@ package bit_test
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"github.com/nokute78/go-bit/pkg/bit/v2"
 	"io"
 	"testing"
@@ -241,30 +240,23 @@ func TestReadBigEndian(t *testing.T) {
 		EmePointer uint16
 	}
 
-	b, err := hex.DecodeString("900601177214f1140000000060022238a92c0000020405b4")
-	if err != nil {
-		t.Errorf("err:%s\n", err)
-	}
 	s := TcpHeader{}
-	br := bytes.NewReader(b)
+	br := bytes.NewReader([]byte{0xd8, 0x65, 0x01, 0xbb, 0x4b, 0xe0, 0x76, 0xcd, 0x48, 0xc8, 0x70, 0x8f, 0x50, 0x10, 0x10,
+		0x18, 0x0e, 0xc1, 0x00, 0x00})
 	if err := bit.Read(br, binary.BigEndian, &s); err != nil {
 		t.Fatalf("error:%s", err)
 	}
-	if s.SrcPort != 0x9006 {
-		t.Errorf("SrcPort:given=0x%x expect=0x%x", s.SrcPort, 0x9006)
+	if s.SrcPort != 0xd865 {
+		t.Errorf("SrcPort:given=0x%x expect=0x%x", s.SrcPort, 0xd865)
 	}
-	if s.SrcPort != 0x9006 {
-		t.Errorf("SrcPort:given=0x%x expect=0x%x", s.SrcPort, 0x9006)
+	if s.DstPort != 0x1bb {
+		t.Errorf("DstPort:given=0x%x expect=0x%x", s.DstPort, 0x1bb)
 	}
-	if s.DstPort != 0x117 {
-		t.Errorf("DstPort:given=0x%x expect=0x%x", s.DstPort, 0x117)
+	if !s.ACK {
+		t.Errorf("ACK is false")
 	}
-	if !s.SYN {
-		t.Errorf("syn is false")
-	}
-	h := bit.BitsToBytes(s.HeaderLen[:], binary.LittleEndian)
-	if h[0] != 0x6 {
-		t.Errorf("Len:given=0x&%x expect=0x%x", h[0], 6)
+	if s.HeaderLen[0] || !s.HeaderLen[1] || s.HeaderLen[2] || !s.HeaderLen[3] {
+		t.Errorf("HeaderLength is not 5. %v\n", s.HeaderLen)
 	}
 }
 
