@@ -139,29 +139,49 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 		off = Offset{8, 0}
 
 	case Bit:
-		//		fmt.Printf("bit: o.Byte=%d o.Bit=%d", o.Byte, o.Bit)
-		ret, err := GetBits(b, *o, 1, binary.LittleEndian)
+		ret, err := GetBitsBitEndian(b, *o, 1, order)
 		if err != nil {
 			return err
 		}
 		if ret[0] {
-			//			fmt.Printf(":1\n")
 			val = reflect.ValueOf(Bit(true))
 		} else {
-			//			fmt.Printf(":0\n")
 			val = reflect.ValueOf(Bit(false))
 		}
 		off = Offset{0, 1}
 	default:
 		switch v.Kind() {
 		case reflect.Array:
-			for i := 0; i < v.Len(); i++ {
-				err := fillData(b, order, v.Index(i), o)
-				if err != nil {
-					return err
+			if v.Len() > 0 {
+				if v.Index(0).Kind() == reflect.Bool {
+					/* Bit array */
+					ret, err := GetBitsBitEndian(b, *o, uint64(v.Len()), order)
+					if err != nil {
+						return err
+					}
+					// set data
+					for i := 0; i < v.Len(); i++ {
+						if v.Index(i).CanSet() {
+							v.Index(i).Set(reflect.ValueOf(Bit(ret[i])))
+						}
+					}
+					*o, err = o.AddOffset(Offset{Bit: uint64(v.Len())})
+					if err != nil {
+						return err
+					}
+
+					return nil
+
+				} else {
+					for i := 0; i < v.Len(); i++ {
+						err := fillData(b, order, v.Index(i), o)
+						if err != nil {
+							return err
+						}
+					}
+					return nil
 				}
 			}
-			return nil
 		case reflect.Struct:
 			for i := 0; i < v.Type().NumField(); i++ {
 				f := v.Type().Field(i)

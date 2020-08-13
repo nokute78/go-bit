@@ -64,46 +64,63 @@ func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 	return ret
 }
 
-/*
-func BytesToBits(b []byte, o binary.ByteOrder, bitSize uint64) ([]Bit, error) {
-	s := len(b) * 8
-	if s < int(bitSize) {
-		return []Bit{}, ErrOutOfRange
+func GetBitsBitEndian(b []byte, o Offset, bitSize uint64, order binary.ByteOrder) ([]Bit, error) {
+	_, err := isInRange(b, o, bitSize)
+	if err != nil {
+		return []Bit{}, err
 	}
 
+	if order == binary.BigEndian {
+		return GetBitsBigBitEndian(b, o, bitSize)
+	}
+	return GetBitsLittleBitEndian(b, o, bitSize)
+}
+
+func GetBitsLittleBitEndian(b []byte, o Offset, bitSize uint64) ([]Bit, error) {
 	ret := make([]Bit, bitSize)
-	byteAddr := 0
-	bitAddr := 0
-	if o == binary.BigEndian {
-		bitAddr = 7
-		for i := 0; i < int(bitSize); i++ {
-			if b[byteAddr]&(1<<bitAddr) > 0 {
-				ret[len(ret)-1-i] = true
-			} else {
-				ret[len(ret)-1-i] = false
-			}
-			bitAddr -= 1
-			if bitAddr == -1 {
-				byteAddr += 1
-				bitAddr = 7
-			}
+	byteAddr := o.Byte
+	bitAddr := int(o.Bit)
+	for i := 0; i < int(bitSize); i++ {
+		if b[byteAddr]&(1<<bitAddr) > 0 {
+			ret[i] = true
+		} else {
+			ret[i] = false
 		}
-	} else {
-		for i := 0; i < int(bitSize); i++ {
-			if b[byteAddr]&(1<<bitAddr) > 0 {
-				ret[i] = true
-			} else {
-				ret[i] = false
-			}
-			bitAddr += 1
-			if bitAddr == 8 {
-				byteAddr += 1
-				bitAddr = 0
-			}
+		bitAddr += 1
+		if bitAddr == 8 {
+			byteAddr += 1
+			bitAddr = 0
 		}
 	}
 	return ret, nil
-}*/
+}
+
+func GetBitsBigBitEndian(b []byte, o Offset, bitSize uint64) ([]Bit, error) {
+	ret := make([]Bit, bitSize)
+	byteAddr := o.Byte
+	bitAddr := 7 - int(o.Bit)
+
+	for i := 0; i < int(bitSize); i++ {
+		if b[byteAddr]&(1<<bitAddr) > 0 {
+			ret[len(ret)-1-i] = true
+		} else {
+			ret[len(ret)-1-i] = false
+		}
+		bitAddr -= 1
+		if bitAddr == -1 {
+			byteAddr += 1
+			bitAddr = 7
+		}
+	}
+	return ret, nil
+}
+
+func BytesToBits(b []byte, bitSize uint64, o binary.ByteOrder) ([]Bit, error) {
+	if o == binary.BigEndian {
+		return GetBitsBigBitEndian(b, Offset{}, bitSize)
+	}
+	return GetBitsLittleBitEndian(b, Offset{}, bitSize)
+}
 
 // SizeOfBits returns size of []Bit slice in byte.
 // e.g. It returns 2 len([]Bit) == 9.

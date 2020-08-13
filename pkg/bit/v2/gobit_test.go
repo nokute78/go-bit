@@ -42,6 +42,74 @@ func TestBitsToBytes(t *testing.T) {
 	}
 }
 
+func TestGetBitsBigBitEndian(t *testing.T) {
+	type testcase struct {
+		name   string
+		ib     []byte
+		off    Offset
+		size   uint64
+		expect []Bit
+	}
+
+	cases := []testcase{
+		{"onebit", []byte{0x80}, Offset{}, 1, []Bit{true}},
+		{"onebyte", []byte{0x80}, Offset{}, 8, []Bit{false, false, false, false, false, false, false, true}},
+		{"TcpDataOffset", []byte{0x00, 0x50}, Offset{Byte: 1}, 4, []Bit{true, false, true, false}},
+	}
+
+	for _, v := range cases {
+		ret, err := GetBitsBigBitEndian(v.ib, v.off, v.size)
+		if err != nil {
+			t.Errorf("%s: err=%s", v.name, err)
+			continue
+		}
+		if len(ret) != len(v.expect) {
+			t.Errorf("%s: len is mismatch.\n given=%d expect=%d", v.name, len(ret), len(v.expect))
+			continue
+		}
+		for i, vv := range ret {
+			if vv != v.expect[i] {
+				t.Errorf("%s: mismatch.\n given=%v expect=%v", v.name, ret, v.expect)
+				break
+			}
+		}
+	}
+}
+
+func TestBytesToBitsBigEndian(t *testing.T) {
+	type testcase struct {
+		name   string
+		ib     []byte
+		size   uint64
+		expect []Bit
+	}
+
+	cases := []testcase{
+		{"onebit", []byte{0x80}, 1, []Bit{true}},
+		{"onebyte", []byte{0x80}, 8, []Bit{false, false, false, false, false, false, false, true}},
+		{"TcpDataOffset", []byte{0x50}, 4, []Bit{true, false, true, false}},
+	}
+
+	for _, v := range cases {
+		ret, err := BytesToBits(v.ib, v.size, binary.BigEndian)
+		if err != nil {
+			t.Errorf("%s: err=%s", v.name, err)
+			continue
+		}
+		if len(ret) != len(v.expect) {
+			t.Errorf("%s: len is mismatch.\n given=%d expect=%d", v.name, len(ret), len(v.expect))
+			continue
+		}
+		for i, vv := range ret {
+			if vv != v.expect[i] {
+				t.Errorf("%s: mismatch.\n given=%v expect=%v", v.name, ret, v.expect)
+				break
+			}
+		}
+	}
+
+}
+
 func TestSizeOfBits(t *testing.T) {
 	type testcase struct {
 		name   string
