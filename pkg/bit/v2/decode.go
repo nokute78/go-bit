@@ -58,12 +58,14 @@ func parseStructTag(t reflect.StructTag) *tagConfig {
 }
 
 // Size returns size of v in bits.
+/*
 func Size(v interface{}) int {
 	val := reflect.ValueOf(v)
 	var i int = 0
 	sizeOfValueInBits(&i, val, false)
 	return i
 }
+*/
 
 // This function will be panic if v doesn't support Bits function.
 // if structtag is true, the function respects struct tag.
@@ -74,10 +76,8 @@ func sizeOfValueInBits(c *int, v reflect.Value, structtag bool) {
 			for i := 0; i < v.Type().NumField(); i++ {
 				f := v.Type().Field(i)
 				cnf := parseStructTag(f.Tag)
-				if cnf != nil {
-					if cnf.ignore {
-						continue
-					}
+				if cnf != nil && cnf.ignore {
+					continue
 				}
 				sizeOfValueInBits(c, v.Field(i), structtag)
 			}
@@ -101,6 +101,7 @@ func sizeOfValueInBits(c *int, v reflect.Value, structtag bool) {
 	}
 }
 
+// filldata reads from b and fill v.
 func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) error {
 	var off Offset
 	var err error
@@ -149,12 +150,13 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 			val = reflect.ValueOf(Bit(false))
 		}
 		off = Offset{0, 1}
-	default:
+	default: /* other data types */
 		switch v.Kind() {
 		case reflect.Array:
 			if v.Len() > 0 {
 				if v.Index(0).Kind() == reflect.Bool {
 					/* Bit array */
+					/* when order is Big Endian, we should read the entire bits at once */
 					ret, err := GetBitsBitEndian(b, *o, uint64(v.Len()), order)
 					if err != nil {
 						return err
@@ -187,10 +189,12 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 				f := v.Type().Field(i)
 				cnf := parseStructTag(f.Tag)
 				if cnf != nil {
+					/* struct tag is defined */
 					if cnf.ignore {
 						continue
 					} else if cnf.skip {
 						var bitSize int
+						/* only updates offset. not fill. */
 						sizeOfValueInBits(&bitSize, v.Field(i), true)
 						*o, err = o.AddOffset(Offset{Bit: uint64(bitSize)})
 						if err != nil {

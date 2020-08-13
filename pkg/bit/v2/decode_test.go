@@ -24,6 +24,7 @@ import (
 	"testing"
 )
 
+/*
 func TestDataSizeInBits(t *testing.T) {
 	type testcase struct {
 		name   string
@@ -56,6 +57,7 @@ func TestDataSizeInBits(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestReadPrimitive(t *testing.T) {
 	// uint8

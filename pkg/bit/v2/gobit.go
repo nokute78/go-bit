@@ -38,7 +38,7 @@ func (b Bit) String() string {
 
 // BitsToBytes converts the unit. bit -> byte.
 func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
-	size := SizeOfBits(b)
+	size := SizeInByte(b)
 	ret := make([]byte, size)
 
 	bitc := 0
@@ -64,6 +64,9 @@ func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 	return ret
 }
 
+// GetBitsBitEndian returns Bit slice.
+// If order is LittleEndian, it is same as GetBits function.
+// It respect bit order endianness when order is BigEndian.
 func GetBitsBitEndian(b []byte, o Offset, bitSize uint64, order binary.ByteOrder) ([]Bit, error) {
 	_, err := isInRange(b, o, bitSize)
 	if err != nil {
@@ -71,31 +74,17 @@ func GetBitsBitEndian(b []byte, o Offset, bitSize uint64, order binary.ByteOrder
 	}
 
 	if order == binary.BigEndian {
-		return GetBitsBigBitEndian(b, o, bitSize)
+		return getBitsBigBitEndian(b, o, bitSize)
 	}
-	return GetBitsLittleBitEndian(b, o, bitSize)
+	return GetBits(b, o, bitSize, order)
 }
 
-func GetBitsLittleBitEndian(b []byte, o Offset, bitSize uint64) ([]Bit, error) {
-	ret := make([]Bit, bitSize)
-	byteAddr := o.Byte
-	bitAddr := int(o.Bit)
-	for i := 0; i < int(bitSize); i++ {
-		if b[byteAddr]&(1<<bitAddr) > 0 {
-			ret[i] = true
-		} else {
-			ret[i] = false
-		}
-		bitAddr += 1
-		if bitAddr == 8 {
-			byteAddr += 1
-			bitAddr = 0
-		}
-	}
-	return ret, nil
-}
-
-func GetBitsBigBitEndian(b []byte, o Offset, bitSize uint64) ([]Bit, error) {
+// this function treats bit order endian.
+//  e.g. b = []byte{0x50} and bitSize is 4. It returns []Bit{true, false, true, false} = 0x5
+//    0x50  =   0101|0000
+//              3210|----   ( Offset when bitSize=4 )
+//              7654|3210   ( Offset when bitSize=8 )
+func getBitsBigBitEndian(b []byte, o Offset, bitSize uint64) ([]Bit, error) {
 	ret := make([]Bit, bitSize)
 	byteAddr := o.Byte
 	bitAddr := 7 - int(o.Bit)
@@ -115,16 +104,17 @@ func GetBitsBigBitEndian(b []byte, o Offset, bitSize uint64) ([]Bit, error) {
 	return ret, nil
 }
 
+// BytesToBits returns Bit slices. bitSize is the size of Bit slice.
 func BytesToBits(b []byte, bitSize uint64, o binary.ByteOrder) ([]Bit, error) {
 	if o == binary.BigEndian {
-		return GetBitsBigBitEndian(b, Offset{}, bitSize)
+		return getBitsBigBitEndian(b, Offset{}, bitSize)
 	}
-	return GetBitsLittleBitEndian(b, Offset{}, bitSize)
+	return GetBits(b, Offset{}, bitSize, binary.LittleEndian)
 }
 
-// SizeOfBits returns size of []Bit slice in byte.
-// e.g. It returns 2 len([]Bit) == 9.
-func SizeOfBits(b []Bit) int {
+// SizeInByte returns size of []Bit slice in byte.
+// e.g. It returns  len([]Bit) == 9.
+func SizeInByte(b []Bit) int {
 	return sizeOfBits(len(b))
 }
 
