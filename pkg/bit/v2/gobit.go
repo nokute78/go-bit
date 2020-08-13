@@ -41,7 +41,6 @@ func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 	size := SizeOfBits(b)
 	ret := make([]byte, size)
 
-	var v byte
 	bitc := 0
 	idx := 0
 	if o == binary.BigEndian {
@@ -49,11 +48,8 @@ func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 	}
 	for i := 0; i < len(b); i++ {
 		if b[i] {
-			v = 1
-		} else {
-			v = 0
+			ret[idx] = ret[idx] | (1 << bitc)
 		}
-		ret[idx] = ret[idx] | (v << bitc)
 		bitc += 1
 		if bitc == 8 {
 			bitc = 0
@@ -67,6 +63,47 @@ func BitsToBytes(b []Bit, o binary.ByteOrder) []byte {
 
 	return ret
 }
+
+/*
+func BytesToBits(b []byte, o binary.ByteOrder, bitSize uint64) ([]Bit, error) {
+	s := len(b) * 8
+	if s < int(bitSize) {
+		return []Bit{}, ErrOutOfRange
+	}
+
+	ret := make([]Bit, bitSize)
+	byteAddr := 0
+	bitAddr := 0
+	if o == binary.BigEndian {
+		bitAddr = 7
+		for i := 0; i < int(bitSize); i++ {
+			if b[byteAddr]&(1<<bitAddr) > 0 {
+				ret[len(ret)-1-i] = true
+			} else {
+				ret[len(ret)-1-i] = false
+			}
+			bitAddr -= 1
+			if bitAddr == -1 {
+				byteAddr += 1
+				bitAddr = 7
+			}
+		}
+	} else {
+		for i := 0; i < int(bitSize); i++ {
+			if b[byteAddr]&(1<<bitAddr) > 0 {
+				ret[i] = true
+			} else {
+				ret[i] = false
+			}
+			bitAddr += 1
+			if bitAddr == 8 {
+				byteAddr += 1
+				bitAddr = 0
+			}
+		}
+	}
+	return ret, nil
+}*/
 
 // SizeOfBits returns size of []Bit slice in byte.
 // e.g. It returns 2 len([]Bit) == 9.
@@ -124,9 +161,9 @@ func (off Offset) Compare(b Offset) int {
 	return 0
 }
 
-// OffsetInBit returns offset in bit.
+// Bits returns offset in bit.
 // e.g. Offset{Byte:3, Bit:2} -> 26.
-func (off Offset) OffsetInBit() uint64 {
+func (off Offset) Bits() uint64 {
 	return off.Byte*8 + off.Bit
 }
 
@@ -145,7 +182,7 @@ func (off Offset) SubOffset(diff Offset) (Offset, error) {
 		return Offset{}, fmt.Errorf("negative")
 	}
 
-	ret := Offset{Byte: 0, Bit: off.OffsetInBit() - diff.OffsetInBit()}
+	ret := Offset{Byte: 0, Bit: off.Bits() - diff.Bits()}
 	ret.Normalize()
 
 	return ret, nil
@@ -208,14 +245,16 @@ func GetBitAsByte(b []byte, off Offset, o binary.ByteOrder) (byte, error) {
 // Return value is not bit shifted.
 func GetBitAsByteNotShift(b []byte, off Offset, o binary.ByteOrder) (byte, error) {
 	off.Normalize()
-	addr := int(off.Byte)
+	byteAddr := int(off.Byte)
+	bitAddr := int(off.Bit)
 	if o == binary.BigEndian {
-		addr = len(b) - 1 - addr
+		byteAddr = len(b) - 1 - byteAddr
+		//		bitAddr = 7 - bitAddr
 	}
 	if err := checkRange(b, off); err != nil {
 		return 0x0, fmt.Errorf("GetBitAsByteNotShift:%w", err)
 	}
-	return b[addr] & (1 << off.Bit), nil
+	return b[byteAddr] & (1 << bitAddr), nil
 }
 
 func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
@@ -232,15 +271,11 @@ func isInRange(b []byte, off Offset, bitSize uint64) (bool, error) {
 // SetBits sets bits on bytes at off.
 // The length to set is bitSize.
 // SetBits returns error if error occurred.
-func SetBits(bytes []byte, off Offset, bitSize uint64, setBits []Bit, o binary.ByteOrder) error {
+func SetBits(bytes []byte, off Offset, setBits []Bit, o binary.ByteOrder) error {
+	bitSize := uint64(len(setBits))
 	sb := BitsToBytes(setBits, o)
 
 	_, err := isInRange(bytes, off, bitSize)
-	if err != nil {
-		return err
-	}
-
-	_, err = isInRange(sb, Offset{0, 0}, bitSize)
 	if err != nil {
 		return err
 	}
@@ -268,8 +303,8 @@ func GetBits(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder) (ret 
 	}
 	ret = make([]Bit, bitSize)
 
-	for i := uint64(0); i < bitSize; i++ {
-		bitOff, err := off.AddOffset(Offset{0, i})
+	for i := 0; i < int(bitSize); i++ {
+		bitOff, err := off.AddOffset(Offset{0, uint64(i)})
 		if err != nil {
 			return []Bit{}, err
 		}
@@ -278,6 +313,7 @@ func GetBits(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder) (ret 
 			return []Bit{}, err
 		}
 		ret[i] = bit
+
 	}
 	return ret, nil
 }

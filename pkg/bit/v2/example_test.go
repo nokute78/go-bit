@@ -100,7 +100,7 @@ func ExampleSetBits() {
 	off := bit.Offset{Byte: 0, Bit: 8}
 	val := []bit.Bit{false, false, false, true} /* 0000_1000 in bit */
 
-	err := bit.SetBits(b, off, 4, val, binary.LittleEndian)
+	err := bit.SetBits(b, off, val, binary.LittleEndian)
 	if err != nil {
 		fmt.Printf("error:%s\n", err)
 	}
