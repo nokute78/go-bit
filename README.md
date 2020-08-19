@@ -71,7 +71,9 @@ The package supports struct tags.
 |Tag|Description|
 |---|-----------|
 |`` `bit:"skip"` ``|Ignore the field. Offset is updated by the size of the field. It is useful for reserved field.|
-|`` `bit:"-"` ``|Ignore the field. Offset is not updated.|
+|`` `bit:"-"` `` |Ignore the field. Offset is not updated.|
+|`` `bit:"BE"` ``|Decode the field as big endian. It is useful for mixed endian data.|
+|`` `bit:"LE"` ``|Decode the field as little endian. It is useful for mixed endian data.|
 
 ## Tool
 * [readbit](cmd/readbit/README.md)
