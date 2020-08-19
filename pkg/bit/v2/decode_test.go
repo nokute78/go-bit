@@ -220,6 +220,20 @@ func TestStructTag(t *testing.T) {
 	}
 }
 
+func TestReadArray(t *testing.T) {
+	input := bytes.NewBuffer([]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff})
+	var b [6]byte
+
+	if err := bit.Read(input, binary.BigEndian, &b); err != nil {
+		t.Fatalf("bit.Read:%s", err)
+	}
+
+	expect := []byte{0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa}
+	if bytes.Compare(b[:], expect) != 0 {
+		t.Fatalf("mismatch: given=%x expect=%x", b, expect)
+	}
+}
+
 func TestReadBigEndian(t *testing.T) {
 	type TcpHeader struct {
 		SrcPort    uint16
@@ -255,17 +269,51 @@ func TestReadBigEndian(t *testing.T) {
 	if s.DstPort != 0x1bb {
 		t.Errorf("DstPort:given=0x%x expect=0x%x", s.DstPort, 0x1bb)
 	}
-	/* TODO:
+
 	if !s.ACK {
 		t.Errorf("ACK is false")
 	}
 
-	if s.HeaderLen[0] || !s.HeaderLen[1] || s.HeaderLen[2] || !s.HeaderLen[3] {
+	if !s.HeaderLen[0] || s.HeaderLen[1] || !s.HeaderLen[2] || s.HeaderLen[3] {
 		t.Errorf("HeaderLength is not 5. %v\n", s.HeaderLen)
 	}
-	*/
 	if s.CheckSum != 0x0ec1 {
 		t.Errorf("CheckSum:given=0x%x expect=0x%x", s.CheckSum, 0x1018)
+	}
+}
+
+func TestMixedEndian(t *testing.T) {
+	type Data struct {
+		F1 uint32
+		F2 uint16
+		F3 uint16
+		F4 uint16  `bit:"BE"`
+		F5 [6]byte `bit:"BE"`
+	}
+
+	d := Data{}
+	b := bytes.NewBuffer([]byte{0x57, 0xab, 0xdf, 0x5d, 0xa1, 0xdf, 0xaa, 0x4e, 0x96, 0xb5, 0x3a, 0x5f, 0xe7, 0x66, 0x92, 0x65})
+	if err := bit.Read(b, binary.LittleEndian, &d); err != nil {
+		t.Fatalf("bit.Read:%s", err)
+	}
+
+	if d.F1 != 0x5ddfab57 {
+		t.Errorf("F1 mismatch:given=0x%x expect=0x%x", d.F1, 0x5ddfab57)
+	}
+	if d.F2 != 0xdfa1 {
+		t.Errorf("F2 mismatch:given=0x%x expect=0x%x", d.F2, 0xdfa1)
+	}
+	if d.F3 != 0x4eaa {
+		t.Errorf("F3 mismatch:given=0x%x expect=0x%x", d.F3, 0x4eaa)
+	}
+
+	if d.F4 != 0x96b5 {
+		t.Errorf("F4 mismatch:given=0x%x expect=0x%x", d.F4, 0x96b5)
+	}
+
+	expect := []byte{0x65, 0x92, 0x66, 0xe7, 0x5f, 0x3a}
+	if bytes.Compare(d.F5[:], expect) != 0 {
+		t.Errorf("F5 mismatch:given=%x expect=%x", d.F5, expect)
 	}
 }
 

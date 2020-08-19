@@ -31,9 +31,12 @@ const (
 // tagConfig represents StructTag.
 //   "-"   : ignore the field
 //   "skip": ignore but offset will be updated
+//   "BE"  : the field is treated as big endian
+//   "LE"  : the field is treated as little endian
 type tagConfig struct {
 	ignore bool
 	skip   bool
+	endian binary.ByteOrder
 }
 
 func parseStructTag(t reflect.StructTag) *tagConfig {
@@ -52,7 +55,12 @@ func parseStructTag(t reflect.StructTag) *tagConfig {
 		case "skip":
 			ret.skip = true
 			return ret
+		case "BE":
+			ret.endian = binary.BigEndian
+		case "LE":
+			ret.endian = binary.LittleEndian
 		}
+
 	}
 	return ret
 }
@@ -171,9 +179,27 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 					if err != nil {
 						return err
 					}
-
 					return nil
-
+				} else if v.Index(0).Kind() == reflect.Uint8 {
+					ret, err := GetBitsAsByte(b, *o, uint64(v.Len()*8), binary.LittleEndian)
+					if err != nil {
+						return err
+					}
+					for i := 0; i < v.Len(); i++ {
+						if v.Index(i).CanSet() {
+							if order == binary.BigEndian {
+								// workaround! binary.Read doesn't support []byte in BigEndian
+								v.Index(i).Set(reflect.ValueOf(ret[v.Len()-1-i]))
+							} else {
+								v.Index(i).Set(reflect.ValueOf(ret[i]))
+							}
+						}
+					}
+					*o, err = o.AddOffset(Offset{Byte: uint64(v.Len())})
+					if err != nil {
+						return err
+					}
+					return nil
 				} else {
 					for i := 0; i < v.Len(); i++ {
 						err := fillData(b, order, v.Index(i), o)
@@ -197,6 +223,12 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 						/* only updates offset. not fill. */
 						sizeOfValueInBits(&bitSize, v.Field(i), true)
 						*o, err = o.AddOffset(Offset{Bit: uint64(bitSize)})
+						if err != nil {
+							return err
+						}
+						continue
+					} else if cnf.endian != nil {
+						err := fillData(b, cnf.endian, v.Field(i), o)
 						if err != nil {
 							return err
 						}
