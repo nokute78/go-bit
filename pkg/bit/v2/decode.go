@@ -18,6 +18,7 @@ package bit
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/goccy/go-reflect"
 	"io"
@@ -27,6 +28,8 @@ import (
 const (
 	tagKeyName = "bit"
 )
+
+var errCannotInterface = errors.New("CanInterface returns false")
 
 // tagConfig represents StructTag.
 //   "-"   : ignore the field
@@ -115,6 +118,16 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 	var err error
 	var val reflect.Value
 
+	if !v.CanInterface() {
+		// skip unexported field
+		var size int
+		sizeOfValueInBits(&size, v, false)
+		*o, err = o.AddOffset(Offset{Bit: uint64(size)})
+		if err != nil {
+			return err
+		}
+		return errCannotInterface
+	}
 	d := v.Interface()
 
 	switch d.(type) {
@@ -203,7 +216,7 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 				} else {
 					for i := 0; i < v.Len(); i++ {
 						err := fillData(b, order, v.Index(i), o)
-						if err != nil {
+						if err != nil && err != errCannotInterface {
 							return err
 						}
 					}
@@ -229,14 +242,14 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 						continue
 					} else if cnf.endian != nil {
 						err := fillData(b, cnf.endian, v.Field(i), o)
-						if err != nil {
+						if err != nil && err != errCannotInterface {
 							return err
 						}
 						continue
 					}
 				}
 				err := fillData(b, order, v.Field(i), o)
-				if err != nil {
+				if err != nil && err != errCannotInterface {
 					return err
 				}
 			}
@@ -281,7 +294,7 @@ func Read(r io.Reader, order binary.ByteOrder, data interface{}) error {
 			return fmt.Errorf("bit.Read:short read, expect=%d byte, read=%d byte", byteSize, n)
 		}
 		err = fillData(barr, order, reflect.Indirect(v), &Offset{})
-		if err != io.EOF {
+		if err != io.EOF && err != errCannotInterface {
 			return err
 		}
 	default:

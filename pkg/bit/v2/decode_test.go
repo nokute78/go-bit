@@ -339,3 +339,23 @@ func BenchmarkReadStruct(b *testing.B) {
 		}
 	}
 }
+
+func TestUnexportedField(t *testing.T) {
+	type S struct {
+		A [8]bit.Bit
+		_ [4]bit.Bit
+		B [4]bit.Bit
+	}
+
+	var s S
+	buf := bytes.NewBuffer([]byte{0xaa, 0xfb})
+	if err := bit.Read(buf, binary.LittleEndian, &s); err != nil {
+		t.Errorf("err=%s", err)
+	}
+	for i := 0; i < len(s.B); i++ {
+		if !s.B[i] {
+			t.Fatalf("val error: given=%v", s.B)
+
+		}
+	}
+}
