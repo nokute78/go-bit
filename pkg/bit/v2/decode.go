@@ -85,6 +85,9 @@ func sizeOfValueInBits(c *int, v reflect.Value, structtag bool) {
 	case reflect.Struct:
 		if structtag {
 			for i := 0; i < v.Type().NumField(); i++ {
+				if !v.Field(i).CanInterface() {
+					continue
+				}
 				f := v.Type().Field(i)
 				cnf := parseStructTag(f.Tag)
 				if cnf != nil && cnf.ignore {
@@ -94,7 +97,9 @@ func sizeOfValueInBits(c *int, v reflect.Value, structtag bool) {
 			}
 		} else {
 			for i := 0; i < v.NumField(); i++ {
-				sizeOfValueInBits(c, v.Field(i), structtag)
+				if v.Field(i).CanInterface() {
+					sizeOfValueInBits(c, v.Field(i), structtag)
+				}
 			}
 		}
 	case reflect.Array, reflect.Slice:
