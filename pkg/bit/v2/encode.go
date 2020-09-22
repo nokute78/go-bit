@@ -18,6 +18,7 @@ package bit
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/goccy/go-reflect"
 	"io"
 )
@@ -43,23 +44,23 @@ func write(v reflect.Value, order binary.ByteOrder, b []byte, o *Offset) error {
 	switch d.(type) {
 	case uint8:
 		val := d.(uint8)
-		bits, err := GetBits([]byte{byte(val)}, Offset{0, 0}, 8, binary.LittleEndian)
+		bits, err := GetBits([]byte{byte(val)}, Offset{0, 0}, 8, order)
 		if err != nil {
 			return err
 		}
-		if err := SetBits(b, *o, bits, order); err != nil {
+		if err := SetBits(b, *o, bits, binary.LittleEndian); err != nil {
 			return err
 		}
 		off = Offset{1, 0}
 	case uint16:
 		val := d.(uint16)
 		bs := make([]byte, 2)
-		binary.LittleEndian.PutUint16(bs, val)
+		order.PutUint16(bs, val)
 		bits, err := GetBits(bs, Offset{0, 0}, 16, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
-		if err := SetBits(b, *o, bits, order); err != nil {
+		if err := SetBits(b, *o, bits, binary.LittleEndian); err != nil {
 			return err
 		}
 		off = Offset{2, 0}
@@ -67,30 +68,31 @@ func write(v reflect.Value, order binary.ByteOrder, b []byte, o *Offset) error {
 	case uint32:
 		val := d.(uint32)
 		bs := make([]byte, 4)
-		binary.LittleEndian.PutUint32(bs, val)
+		order.PutUint32(bs, val)
 		bits, err := GetBits(bs, Offset{0, 0}, 32, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
-		if err := SetBits(b, *o, bits, order); err != nil {
+		if err := SetBits(b, *o, bits, binary.LittleEndian); err != nil {
 			return err
 		}
 		off = Offset{4, 0}
 	case uint64:
 		val := d.(uint64)
 		bs := make([]byte, 8)
-		binary.LittleEndian.PutUint64(bs, val)
+		order.PutUint64(bs, val)
 		bits, err := GetBits(bs, Offset{0, 0}, 64, binary.LittleEndian)
 		if err != nil {
 			return err
 		}
-		if err := SetBits(b, *o, bits, order); err != nil {
+		if err := SetBits(b, *o, bits, binary.LittleEndian); err != nil {
 			return err
 		}
 		off = Offset{8, 0}
 	case Bit:
 		val := d.(Bit)
-		if err := SetBits(b, *o, []Bit{val}, order); err != nil {
+		fmt.Printf("Bit:%t off=%+v\n", val, *o)
+		if err := SetBitsBitEndian(b, *o, []Bit{val}, order); err != nil {
 			return err
 		}
 		off = Offset{0, 1}
@@ -99,6 +101,18 @@ func write(v reflect.Value, order binary.ByteOrder, b []byte, o *Offset) error {
 		case reflect.Slice, reflect.Array:
 			if v.Len() > 0 {
 				if v.Index(0).Kind() == reflect.Bool {
+					/* Bit array */
+					/* when order is Big Endian, we should read the entire bits at once */
+					bitSize := v.Len()
+					bits := make([]Bit, bitSize)
+					for i := 0; i < bitSize; i++ {
+						bits[i] = Bit(v.Index(i).Bool())
+					}
+
+					if err := SetBitsBitEndian(b, *o, bits, order); err != nil {
+						return err
+					}
+					off = Offset{0, uint64(bitSize)}
 
 				} else if v.Index(0).Kind() == reflect.Uint8 {
 					// byte slice / byte array
@@ -112,11 +126,11 @@ func write(v reflect.Value, order binary.ByteOrder, b []byte, o *Offset) error {
 							bs[i] = byte(v.Index(i).Uint())
 						}
 					}
-					bits, err := GetBits(bs, Offset{0, 0}, uint64(v.Len()*8), binary.LittleEndian)
+					bits, err := GetBits(bs, Offset{0, 0}, uint64(v.Len()*8), order)
 					if err != nil {
 						return err
 					}
-					if err := SetBits(b, *o, bits, order); err != nil {
+					if err := SetBits(b, *o, bits, binary.LittleEndian); err != nil {
 						return err
 					}
 					off = Offset{uint64(v.Len()), 0}
@@ -129,6 +143,39 @@ func write(v reflect.Value, order binary.ByteOrder, b []byte, o *Offset) error {
 					}
 				}
 			}
+		case reflect.Struct:
+			for i := 0; i < v.Type().NumField(); i++ {
+				f := v.Type().Field(i)
+				cnf := parseStructTag(f.Tag)
+				if cnf != nil {
+					/* struct tag is defined */
+					if cnf.ignore {
+						continue
+					} else if cnf.skip {
+						var bitSize int
+						/* only updates offset. not fill. */
+						sizeOfValueInBits(&bitSize, v.Field(i), true)
+						*o, err = o.AddOffset(Offset{Bit: uint64(bitSize)})
+						if err != nil {
+							return err
+						}
+						continue
+					} else if cnf.endian != nil {
+						err := write(v.Field(i), cnf.endian, b, o)
+						if err != nil && err != errCannotInterface {
+							return err
+						}
+						continue
+					}
+				}
+				err := write(v.Field(i), order, b, o)
+				if err != nil && err != errCannotInterface {
+					return err
+				}
+			}
+			return nil
+		default:
+			return fmt.Errorf("Not Supported %s", v.Kind())
 		}
 	}
 
