@@ -301,6 +301,47 @@ func SetBits(bytes []byte, off Offset, setBits []Bit, o binary.ByteOrder) error 
 	return nil
 }
 
+// SetBitsBitEndian sets bits in b.
+// If order is LittleEndian, it is same as GetBits function.
+// It respect bit order endianness when order is BigEndian.
+func SetBitsBitEndian(b []byte, off Offset, setBits []Bit, order binary.ByteOrder) error {
+	bitSize := uint64(len(setBits))
+	_, err := isInRange(b, off, bitSize)
+	if err != nil {
+		return err
+	}
+
+	if order == binary.BigEndian {
+		return setBitsBigBitEndian(b, off, setBits, bitSize)
+	}
+	return SetBits(b, off, setBits, order)
+}
+
+// this function treats bit order endian.
+//    0x50  =   0101|0000
+//              3210|----   ( Offset when bitSize=4 )
+//              7654|3210   ( Offset when bitSize=8 )
+func setBitsBigBitEndian(b []byte, off Offset, setBits []Bit, bitSize uint64) error {
+	byteAddr := off.Byte
+	bitAddr := 7 - int(off.Bit)
+
+	for i := 0; i < int(bitSize); i++ {
+		if setBits[int(bitSize)-1-i] {
+			b[byteAddr] |= 1 << bitAddr
+		} else {
+			b[byteAddr] &= ^(1 << bitAddr)
+		}
+
+		bitAddr -= 1
+		if bitAddr == -1 {
+			byteAddr += 1
+			bitAddr = 7
+		}
+	}
+
+	return nil
+}
+
 // GetBits returns Bit slice.
 // GetBits reads bytes slice from Offset off. Read size is bitSize in bit.
 func GetBits(bytes []byte, off Offset, bitSize uint64, o binary.ByteOrder) (ret []Bit, err error) {

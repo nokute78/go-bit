@@ -76,6 +76,32 @@ func TestGetBitsBitEndian(t *testing.T) {
 	}
 }
 
+func TestSetBitsBigBitEndian(t *testing.T) {
+	type testcase struct {
+		name   string
+		base   []byte
+		ib     []Bit
+		off    Offset
+		expect []byte
+	}
+
+	cases := []testcase{
+		{"onebit", []byte{0x00}, []Bit{true}, Offset{}, []byte{0x80}},
+		{"0x50", []byte{0x00}, []Bit{true, false, true, false}, Offset{}, []byte{0x50}},
+		{"offset 1", []byte{0x00}, []Bit{true, false, true, false}, Offset{Bit: 1}, []byte{0x28}},
+	}
+
+	for _, v := range cases {
+		if err := SetBitsBitEndian(v.base, v.off, v.ib, binary.BigEndian); err != nil {
+			t.Errorf("%s: err=%s", v.name, err)
+			continue
+		}
+		if bytes.Compare(v.expect, v.base) != 0 {
+			t.Errorf("%s: mistmatch\n given =%x\n expect=%x", v.name, v.base, v.expect)
+		}
+	}
+}
+
 func TestGetBitsBigBitEndian(t *testing.T) {
 	type testcase struct {
 		name   string

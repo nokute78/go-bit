@@ -22,51 +22,9 @@ import (
 	"fmt"
 	"github.com/goccy/go-reflect"
 	"io"
-	"strings"
-)
-
-const (
-	tagKeyName = "bit"
 )
 
 var errCannotInterface = errors.New("CanInterface returns false")
-
-// tagConfig represents StructTag.
-//   "-"   : ignore the field
-//   "skip": ignore but offset will be updated
-//   "BE"  : the field is treated as big endian
-//   "LE"  : the field is treated as little endian
-type tagConfig struct {
-	ignore bool
-	skip   bool
-	endian binary.ByteOrder
-}
-
-func parseStructTag(t reflect.StructTag) *tagConfig {
-	s, ok := t.Lookup(tagKeyName)
-	if !ok {
-		return nil
-	}
-	ret := &tagConfig{}
-
-	strs := strings.Split(s, ",")
-	for _, v := range strs {
-		switch v {
-		case "-":
-			ret.ignore = true
-			return ret
-		case "skip":
-			ret.skip = true
-			return ret
-		case "BE":
-			ret.endian = binary.BigEndian
-		case "LE":
-			ret.endian = binary.LittleEndian
-		}
-
-	}
-	return ret
-}
 
 // Size returns size of v in bits.
 /*
@@ -117,8 +75,8 @@ func sizeOfValueInBits(c *int, v reflect.Value, structtag bool) {
 	}
 }
 
-// filldata reads from b and fill v.
-func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) error {
+// read reads from b and fill v.
+func read(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) error {
 	var off Offset
 	var err error
 	var val reflect.Value
@@ -220,7 +178,7 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 					return nil
 				} else {
 					for i := 0; i < v.Len(); i++ {
-						err := fillData(b, order, v.Index(i), o)
+						err := read(b, order, v.Index(i), o)
 						if err != nil && err != errCannotInterface {
 							return err
 						}
@@ -246,14 +204,14 @@ func fillData(b []byte, order binary.ByteOrder, v reflect.Value, o *Offset) erro
 						}
 						continue
 					} else if cnf.endian != nil {
-						err := fillData(b, cnf.endian, v.Field(i), o)
+						err := read(b, cnf.endian, v.Field(i), o)
 						if err != nil && err != errCannotInterface {
 							return err
 						}
 						continue
 					}
 				}
-				err := fillData(b, order, v.Field(i), o)
+				err := read(b, order, v.Field(i), o)
 				if err != nil && err != errCannotInterface {
 					return err
 				}
@@ -298,7 +256,7 @@ func Read(r io.Reader, order binary.ByteOrder, data interface{}) error {
 		} else if n != byteSize {
 			return fmt.Errorf("bit.Read:short read, expect=%d byte, read=%d byte", byteSize, n)
 		}
-		err = fillData(barr, order, reflect.Indirect(v), &Offset{})
+		err = read(barr, order, reflect.Indirect(v), &Offset{})
 		if err != io.EOF && err != errCannotInterface {
 			return err
 		}
