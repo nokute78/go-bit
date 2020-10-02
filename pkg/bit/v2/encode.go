@@ -91,7 +91,6 @@ func write(v reflect.Value, order binary.ByteOrder, b []byte, o *Offset) error {
 		off = Offset{8, 0}
 	case Bit:
 		val := d.(Bit)
-		fmt.Printf("Bit:%t off=%+v\n", val, *o)
 		if err := SetBitsBitEndian(b, *o, []Bit{val}, order); err != nil {
 			return err
 		}
