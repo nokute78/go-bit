@@ -11,6 +11,9 @@ A library to read/write bits from a byte slice.
 go get -u github.com/nokute78/go-bit/v2
 ```
 
+**CAUTION**: `github.com/nokute78/go-bit/pkg/bit/v2` will be deprecated.
+Please use `github.com/nokute78/go-bit/v2`.
+
 ## Usage
 
 The package supports `binary.Read` like API.
