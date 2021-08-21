@@ -1,14 +1,14 @@
 # go-bit
 ![Go](https://github.com/nokute78/go-bit/workflows/Go/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nokute78/go-bit)](https://goreportcard.com/report/github.com/nokute78/go-bit)
-[![GoDoc](https://godoc.org/github.com/nokute78/go-bit/pkg/bit/v2?status.svg)](https://godoc.org/github.com/nokute78/go-bit/pkg/bit/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/nokute78/go-bit/v2.svg)](https://pkg.go.dev/github.com/nokute78/go-bit/v2)
 
 A library to read/write bits from a byte slice.
 
 ## Installation
 
 ```
-$ go get github.com/nokute78/go-bit/pkg/bit
+go get -u github.com/nokute78/go-bit/v2
 ```
 
 ## Usage
@@ -16,6 +16,12 @@ $ go get github.com/nokute78/go-bit/pkg/bit
 The package supports `binary.Read` like API.
 
 It is an example to decode TCP header. (Big Endian)
+
+1. Save below code as tcp.go.
+2. `go mod init go-bit-example`
+3. `go mod tidy`
+4. `go run tcp.go`
+
 ```go
 package main
 
@@ -23,7 +29,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/nokute78/go-bit/pkg/bit/v2"
+	"github.com/nokute78/go-bit/v2"
 )
 
 func main() {
@@ -76,11 +82,11 @@ The package supports struct tags.
 |`` `bit:"LE"` ``|Decode the field as little endian. It is useful for mixed endian data.|
 
 ## Tool
-* [readbit](cmd/readbit/README.md)
+* [readbit](v2/cmd/readbit/README.md)
 
 ## Document
 
-https://godoc.org/github.com/nokute78/go-bit/pkg/bit/v2
+https://pkg.go.dev/github.com/nokute78/go-bit/v2
 
 ## Old Document
 
